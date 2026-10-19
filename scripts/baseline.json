@@ -20,11 +20,21 @@
       "name": "poster_admin_token",
       "hasValue": "true",
       "path": "/",
-      "expires": "mon, 26 oct 2026 18:46:55 gmt",
-      "max-age": "604800",
+      "expires": "tue, 20 oct 2026 19:23:16 gmt",
+      "max-age": "86400",
       "httponly": "true",
       "samesite": "lax"
     }
+  },
+  {
+    "name": "admin.settings.old_forged_cookie",
+    "method": "GET",
+    "url": "/api/admin/settings",
+    "statusCode": 401,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Unauthorized"
   },
   {
     "name": "admin.settings.get",
@@ -68,7 +78,7 @@
   {
     "name": "templates.get",
     "method": "GET",
-    "url": "/api/templates/t_smoke-test-template_1792435616618",
+    "url": "/api/templates/t_smoke-test-template_1792437797221",
     "statusCode": 200,
     "keys": [
       "category",
@@ -87,9 +97,19 @@
     ]
   },
   {
+    "name": "admin.templates.duplicate.no_cookie",
+    "method": "POST",
+    "url": "/api/admin/templates/t_smoke-test-template_1792437797221/duplicate",
+    "statusCode": 401,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Unauthorized"
+  },
+  {
     "name": "admin.templates.duplicate",
     "method": "POST",
-    "url": "/api/admin/templates/t_smoke-test-template_1792435616618/duplicate",
+    "url": "/api/admin/templates/t_smoke-test-template_1792437797221/duplicate",
     "statusCode": 200,
     "keys": [
       "config",
@@ -98,9 +118,19 @@
     ]
   },
   {
+    "name": "admin.templates.delete.no_cookie",
+    "method": "DELETE",
+    "url": "/api/admin/templates/t_smoke-test-temp_copy_1792437797251",
+    "statusCode": 401,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Unauthorized"
+  },
+  {
     "name": "admin.templates.delete",
     "method": "DELETE",
-    "url": "/api/admin/templates/t_smoke-test-temp_copy_1792435617283",
+    "url": "/api/admin/templates/t_smoke-test-temp_copy_1792437797251",
     "statusCode": 200,
     "keys": [
       "success"
@@ -149,7 +179,7 @@
       "name": "poster_user_token",
       "hasValue": "true",
       "path": "/",
-      "expires": "wed, 18 nov 2026 18:46:59 gmt",
+      "expires": "wed, 18 nov 2026 19:23:19 gmt",
       "max-age": "2592000",
       "httponly": "true",
       "samesite": "lax"
@@ -235,7 +265,26 @@
       "name": "poster_user_token",
       "hasValue": "true",
       "path": "/",
-      "expires": "wed, 18 nov 2026 18:47:01 gmt",
+      "expires": "wed, 18 nov 2026 19:23:21 gmt",
+      "max-age": "2592000",
+      "httponly": "true",
+      "samesite": "lax"
+    }
+  },
+  {
+    "name": "auth.signup.user2",
+    "method": "POST",
+    "url": "/api/auth/signup",
+    "statusCode": 200,
+    "keys": [
+      "success",
+      "user"
+    ],
+    "cookies": {
+      "name": "poster_user_token",
+      "hasValue": "true",
+      "path": "/",
+      "expires": "wed, 18 nov 2026 19:23:23 gmt",
       "max-age": "2592000",
       "httponly": "true",
       "samesite": "lax"
@@ -339,7 +388,7 @@
   {
     "name": "admin.packages.patch.no_cookie",
     "method": "PATCH",
-    "url": "/api/admin/packages/cmvflw439000erb76qtg1c9eu",
+    "url": "/api/admin/packages/cmvfn6vau004lrb76zducpiwu",
     "statusCode": 401,
     "keys": [
       "error"
@@ -349,7 +398,7 @@
   {
     "name": "admin.packages.patch.invalid_cookie",
     "method": "PATCH",
-    "url": "/api/admin/packages/cmvflw439000erb76qtg1c9eu",
+    "url": "/api/admin/packages/cmvfn6vau004lrb76zducpiwu",
     "statusCode": 401,
     "keys": [
       "error"
@@ -359,7 +408,7 @@
   {
     "name": "admin.packages.patch.user_cookie",
     "method": "PATCH",
-    "url": "/api/admin/packages/cmvflw439000erb76qtg1c9eu",
+    "url": "/api/admin/packages/cmvfn6vau004lrb76zducpiwu",
     "statusCode": 401,
     "keys": [
       "error"
@@ -367,14 +416,44 @@
     "errorMessage": "Unauthorized"
   },
   {
+    "name": "admin.packages.patch.invalid_credits",
+    "method": "PATCH",
+    "url": "/api/admin/packages/cmvfn6vau004lrb76zducpiwu",
+    "statusCode": 400,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "credits must be a valid number"
+  },
+  {
+    "name": "admin.packages.patch.negative_price",
+    "method": "PATCH",
+    "url": "/api/admin/packages/cmvfn6vau004lrb76zducpiwu",
+    "statusCode": 400,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "price cannot be negative"
+  },
+  {
     "name": "admin.packages.patch",
     "method": "PATCH",
-    "url": "/api/admin/packages/cmvflw439000erb76qtg1c9eu",
+    "url": "/api/admin/packages/cmvfn6vau004lrb76zducpiwu",
     "statusCode": 200,
     "keys": [
       "package",
       "success"
     ]
+  },
+  {
+    "name": "payments.create.manual_in_production",
+    "method": "POST",
+    "url": "/api/payments/create",
+    "statusCode": 400,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Payment provider 'manual' is not available."
   },
   {
     "name": "payments.create",
@@ -388,13 +467,33 @@
     ]
   },
   {
+    "name": "payments.get.second_user",
+    "method": "GET",
+    "url": "/api/payments/cmvfn6wgy004mrb76r1bwwd8u",
+    "statusCode": 404,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Payment not found"
+  },
+  {
     "name": "payments.get",
     "method": "GET",
-    "url": "/api/payments/cmvflw5ko000frb76siiglgku",
+    "url": "/api/payments/cmvfn6wgy004mrb76r1bwwd8u",
     "statusCode": 200,
     "keys": [
       "payment"
     ]
+  },
+  {
+    "name": "payments.verify.second_user",
+    "method": "POST",
+    "url": "/api/payments/verify",
+    "statusCode": 403,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Forbidden. You do not own this payment."
   },
   {
     "name": "payments.verify",
@@ -409,13 +508,14 @@
     ]
   },
   {
-    "name": "payments.webhook",
+    "name": "payments.webhook.forged",
     "method": "POST",
     "url": "/api/payments/webhook",
-    "statusCode": 200,
+    "statusCode": 400,
     "keys": [
-      "message"
-    ]
+      "error"
+    ],
+    "errorMessage": "Webhook not recognized or unhandled"
   },
   {
     "name": "admin.payments.list",
@@ -440,7 +540,7 @@
   {
     "name": "admin.packages.delete.no_cookie",
     "method": "DELETE",
-    "url": "/api/admin/packages/cmvflw439000erb76qtg1c9eu",
+    "url": "/api/admin/packages/cmvfn6vau004lrb76zducpiwu",
     "statusCode": 401,
     "keys": [
       "error"
@@ -450,7 +550,7 @@
   {
     "name": "admin.packages.delete.invalid_cookie",
     "method": "DELETE",
-    "url": "/api/admin/packages/cmvflw439000erb76qtg1c9eu",
+    "url": "/api/admin/packages/cmvfn6vau004lrb76zducpiwu",
     "statusCode": 401,
     "keys": [
       "error"
@@ -460,7 +560,7 @@
   {
     "name": "admin.packages.delete.user_cookie",
     "method": "DELETE",
-    "url": "/api/admin/packages/cmvflw439000erb76qtg1c9eu",
+    "url": "/api/admin/packages/cmvfn6vau004lrb76zducpiwu",
     "statusCode": 401,
     "keys": [
       "error"
@@ -470,7 +570,7 @@
   {
     "name": "admin.packages.delete",
     "method": "DELETE",
-    "url": "/api/admin/packages/cmvflw439000erb76qtg1c9eu",
+    "url": "/api/admin/packages/cmvfn6vau004lrb76zducpiwu",
     "statusCode": 200,
     "keys": [
       "deactivated",
@@ -499,7 +599,7 @@
   {
     "name": "admin.poses.patch",
     "method": "PATCH",
-    "url": "/api/poses/cmvflwchj000irb76izulvovx",
+    "url": "/api/poses/cmvfn74jc004prb765xpdpr7m",
     "statusCode": 200,
     "keys": [
       "pose",
@@ -522,7 +622,7 @@
   {
     "name": "poses.jobStatus",
     "method": "GET",
-    "url": "/api/poses/jobs/cmvflwfxd000krb76fuzyaf5s",
+    "url": "/api/poses/jobs/cmvfn77he004rrb76wuqdsrlj",
     "statusCode": 200,
     "keys": [
       "createdAt",
@@ -536,9 +636,29 @@
     ]
   },
   {
+    "name": "poses.jobStatus.second_user",
+    "method": "GET",
+    "url": "/api/poses/jobs/cmvfn77he004rrb76wuqdsrlj",
+    "statusCode": 404,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Job not found"
+  },
+  {
+    "name": "poses.files.output_second_user",
+    "method": "GET",
+    "url": "/api/posters/files/poses/outputs/cmvfn77he004rrb76wuqdsrlj.png",
+    "statusCode": 404,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "File not found"
+  },
+  {
     "name": "admin.poses.delete",
     "method": "DELETE",
-    "url": "/api/poses/cmvflwchj000irb76izulvovx",
+    "url": "/api/poses/cmvfn74jc004prb765xpdpr7m",
     "statusCode": 200,
     "keys": [
       "success"
@@ -566,16 +686,36 @@
   {
     "name": "posters.get",
     "method": "GET",
-    "url": "/api/posters/cmvflwho6000lrb76a4fczrpn",
+    "url": "/api/posters/cmvfn79wb004srb76cwmfapcn",
     "statusCode": 200,
     "keys": [
       "poster"
     ]
   },
   {
+    "name": "posters.get.second_user",
+    "method": "GET",
+    "url": "/api/posters/cmvfn79wb004srb76cwmfapcn",
+    "statusCode": 404,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Poster not found"
+  },
+  {
+    "name": "posters.files.second_user",
+    "method": "GET",
+    "url": "/api/posters/files/cmvfn79wb004srb76cwmfapcn/preview.png",
+    "statusCode": 404,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "File not found"
+  },
+  {
     "name": "posters.duplicate",
     "method": "POST",
-    "url": "/api/posters/cmvflwho6000lrb76a4fczrpn/duplicate",
+    "url": "/api/posters/cmvfn79wb004srb76cwmfapcn/duplicate",
     "statusCode": 200,
     "keys": [
       "poster",
@@ -585,7 +725,7 @@
   {
     "name": "posters.deleteDuplicate",
     "method": "DELETE",
-    "url": "/api/posters/cmvflwkqz000nrb767ipl5c9l",
+    "url": "/api/posters/cmvfn7cx0004urb76ppoqgt19",
     "statusCode": 200,
     "keys": [
       "success"
@@ -594,7 +734,7 @@
   {
     "name": "posters.deleteOriginal",
     "method": "DELETE",
-    "url": "/api/posters/cmvflwho6000lrb76a4fczrpn",
+    "url": "/api/posters/cmvfn79wb004srb76cwmfapcn",
     "statusCode": 200,
     "keys": [
       "success"
@@ -673,7 +813,7 @@
   {
     "name": "reports.adminResolve.no_cookie",
     "method": "PATCH",
-    "url": "/api/reports/cmvflwndv000orb762z2kois8",
+    "url": "/api/reports/cmvfn7fij004vrb76barhft9i",
     "statusCode": 401,
     "keys": [
       "error"
@@ -683,7 +823,7 @@
   {
     "name": "reports.adminResolve.invalid_cookie",
     "method": "PATCH",
-    "url": "/api/reports/cmvflwndv000orb762z2kois8",
+    "url": "/api/reports/cmvfn7fij004vrb76barhft9i",
     "statusCode": 401,
     "keys": [
       "error"
@@ -693,7 +833,7 @@
   {
     "name": "reports.adminResolve.user_cookie",
     "method": "PATCH",
-    "url": "/api/reports/cmvflwndv000orb762z2kois8",
+    "url": "/api/reports/cmvfn7fij004vrb76barhft9i",
     "statusCode": 401,
     "keys": [
       "error"
@@ -713,7 +853,7 @@
   {
     "name": "reports.adminResolve",
     "method": "PATCH",
-    "url": "/api/reports/cmvflwndv000orb762z2kois8",
+    "url": "/api/reports/cmvfn7fij004vrb76barhft9i",
     "statusCode": 200,
     "keys": [
       "report",
@@ -840,6 +980,26 @@
     "errorMessage": "eventType is required"
   },
   {
+    "name": "analytics.log.unknown_event_type",
+    "method": "POST",
+    "url": "/api/analytics",
+    "statusCode": 400,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Invalid eventType. Allowed types: template_opened, photo_uploaded, bg_removed, text_entered, poster_exported, poster_saved, error"
+  },
+  {
+    "name": "analytics.log.large_metadata",
+    "method": "POST",
+    "url": "/api/analytics",
+    "statusCode": 400,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Metadata object exceeds 2 KB limit"
+  },
+  {
     "name": "analytics.log",
     "method": "POST",
     "url": "/api/analytics",
@@ -847,6 +1007,16 @@
     "keys": [
       "success"
     ]
+  },
+  {
+    "name": "analytics.log.rapid_calls",
+    "method": "POST",
+    "url": "/api/analytics",
+    "statusCode": 429,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Rate limit reached. You have made too many requests in a short time. Please wait a few moments and try again."
   },
   {
     "name": "analytics.summary.no_cookie",
@@ -912,7 +1082,7 @@
   {
     "name": "admin.templates.cleanup",
     "method": "DELETE",
-    "url": "/api/admin/templates/t_smoke-test-template_1792435616618",
+    "url": "/api/admin/templates/t_smoke-test-template_1792437797221",
     "statusCode": 200,
     "keys": [
       "success"

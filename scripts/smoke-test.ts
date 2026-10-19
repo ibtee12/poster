@@ -1,8 +1,20 @@
 import fs from "fs";
 import path from "path";
+import crypto from "crypto";
 
 const BASE_URL = process.env.BASE_URL || "http://localhost:3000";
 const BASELINE_PATH = path.join(__dirname, "baseline.json");
+
+// Generate unique IP per test runner invocation to avoid rate limit collisions across test runs
+const TEST_RUN_IP = "127.0.0." + ((Math.floor(Date.now() / 1000) % 200) + 10);
+const originalFetch = globalThis.fetch;
+globalThis.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+  const headers = new Headers(init?.headers);
+  if (!headers.has("x-forwarded-for")) {
+    headers.set("x-forwarded-for", TEST_RUN_IP);
+  }
+  return originalFetch(input, { ...init, headers });
+};
 
 export interface EndpointResult {
   name: string;
@@ -110,6 +122,19 @@ async function runSmokeTest(): Promise<EndpointResult[]> {
     record("admin.login", "POST", "/api/admin/login", res.status, data, res);
   }
 
+  // 2b. Admin Auth Failure: Cookie forged with old formula (SHA-256 of password + salt)
+  {
+    const oldForgedToken = crypto
+      .createHash("sha256")
+      .update((process.env.ADMIN_PASSWORD || "admin123") + "_poster_maker_salt_key")
+      .digest("hex");
+    const res = await fetch(`${BASE_URL}/api/admin/settings`, {
+      headers: { Cookie: `poster_admin_token=${oldForgedToken}` },
+    });
+    const data = await res.json().catch(() => ({}));
+    record("admin.settings.old_forged_cookie", "GET", "/api/admin/settings", res.status, data);
+  }
+
   const adminHeaders: Record<string, string> = adminCookie ? { Cookie: adminCookie } : {};
 
   // 3. Admin Settings GET & POST
@@ -195,7 +220,14 @@ async function runSmokeTest(): Promise<EndpointResult[]> {
     record("templates.get", "GET", `/api/templates/${createdTemplateId}`, res.status, data);
   }
 
-  // 7. Admin Template Duplicate
+  // 7. Admin Template Duplicate Failures & Normal
+  if (createdTemplateId) {
+    const res = await fetch(`${BASE_URL}/api/admin/templates/${createdTemplateId}/duplicate`, {
+      method: "POST",
+    });
+    const data = await res.json().catch(() => ({}));
+    record("admin.templates.duplicate.no_cookie", "POST", `/api/admin/templates/${createdTemplateId}/duplicate`, res.status, data);
+  }
   if (createdTemplateId) {
     const res = await fetch(`${BASE_URL}/api/admin/templates/${createdTemplateId}/duplicate`, {
       method: "POST",
@@ -206,7 +238,14 @@ async function runSmokeTest(): Promise<EndpointResult[]> {
     record("admin.templates.duplicate", "POST", `/api/admin/templates/${createdTemplateId}/duplicate`, res.status, data);
   }
 
-  // 8. Admin Template Delete (Clean up duplicate)
+  // 8. Admin Template Delete Failures & Normal (Clean up duplicate)
+  if (duplicatedTemplateId) {
+    const res = await fetch(`${BASE_URL}/api/admin/templates/${duplicatedTemplateId}`, {
+      method: "DELETE",
+    });
+    const data = await res.json().catch(() => ({}));
+    record("admin.templates.delete.no_cookie", "DELETE", `/api/admin/templates/${duplicatedTemplateId}`, res.status, data);
+  }
   if (duplicatedTemplateId) {
     const res = await fetch(`${BASE_URL}/api/admin/templates/${duplicatedTemplateId}`, {
       method: "DELETE",
@@ -347,6 +386,23 @@ async function runSmokeTest(): Promise<EndpointResult[]> {
     record("auth.login", "POST", "/api/auth/login", res.status, data, res);
   }
 
+  // 11b. User 2 Signup (for cross-user security smoke tests)
+  let user2Cookie = "";
+  const user2Email = `smoke_user2_${Date.now()}@example.com`;
+  {
+    const res = await fetch(`${BASE_URL}/api/auth/signup`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: user2Email, password: "password123" }),
+    });
+    const setCookie = res.headers.get("set-cookie") || "";
+    const match = setCookie.match(/poster_user_token=([^;]+)/);
+    if (match) user2Cookie = `poster_user_token=${match[1]}`;
+    const data = await res.json().catch(() => ({}));
+    record("auth.signup.user2", "POST", "/api/auth/signup", res.status, data, res);
+  }
+  const user2Headers: Record<string, string> = user2Cookie ? { Cookie: user2Cookie } : {};
+
   // 12. Credits Balance & Spend
   {
     const res = await fetch(`${BASE_URL}/api/credits/balance`, { headers: userHeaders });
@@ -464,7 +520,29 @@ async function runSmokeTest(): Promise<EndpointResult[]> {
       record("admin.packages.patch.user_cookie", "PATCH", `/api/admin/packages/${createdPackageId}`, res.status, data);
     }
 
-    // 14d. Packages Admin Normal Patch
+    // 14d-1. Packages Admin Patch Invalid Credits ("abc")
+    {
+      const res = await fetch(`${BASE_URL}/api/admin/packages/${createdPackageId}`, {
+        method: "PATCH",
+        headers: { ...adminHeaders, "Content-Type": "application/json" },
+        body: JSON.stringify({ credits: "abc" }),
+      });
+      const data = await res.json().catch(() => ({}));
+      record("admin.packages.patch.invalid_credits", "PATCH", `/api/admin/packages/${createdPackageId}`, res.status, data);
+    }
+
+    // 14d-2. Packages Admin Patch Negative Price (-10)
+    {
+      const res = await fetch(`${BASE_URL}/api/admin/packages/${createdPackageId}`, {
+        method: "PATCH",
+        headers: { ...adminHeaders, "Content-Type": "application/json" },
+        body: JSON.stringify({ price: -10 }),
+      });
+      const data = await res.json().catch(() => ({}));
+      record("admin.packages.patch.negative_price", "PATCH", `/api/admin/packages/${createdPackageId}`, res.status, data);
+    }
+
+    // 14d-3. Packages Admin Normal Patch
     const res = await fetch(`${BASE_URL}/api/admin/packages/${createdPackageId}`, {
       method: "PATCH",
       headers: { ...adminHeaders, "Content-Type": "application/json" },
@@ -474,22 +552,56 @@ async function runSmokeTest(): Promise<EndpointResult[]> {
     record("admin.packages.patch", "PATCH", `/api/admin/packages/${createdPackageId}`, res.status, data);
   }
 
-  // 15. Payments: Create, Get, Verify, Webhook, Admin List, Admin Approve
+  // 15. Payments Security & Normal Flows
+  // 15a. Client cannot select disabled manual provider
   {
     const res = await fetch(`${BASE_URL}/api/payments/create`, {
       method: "POST",
       headers: { ...userHeaders, "Content-Type": "application/json" },
-      body: JSON.stringify({ packageId: createdPackageId, provider: "test" }),
+      body: JSON.stringify({ packageId: createdPackageId, providerName: "manual" }),
+    });
+    const data = await res.json().catch(() => ({}));
+    record("payments.create.manual_in_production", "POST", "/api/payments/create", res.status, data);
+  }
+
+  // 15b. Create Normal Payment
+  {
+    const res = await fetch(`${BASE_URL}/api/payments/create`, {
+      method: "POST",
+      headers: { ...userHeaders, "Content-Type": "application/json" },
+      body: JSON.stringify({ packageId: createdPackageId }),
     });
     const data = await res.json().catch(() => ({}));
     createdPaymentId = data.paymentId || "";
     record("payments.create", "POST", "/api/payments/create", res.status, data);
   }
+
+  // 15c. Second User cannot read First User's payment
+  if (createdPaymentId) {
+    const res = await fetch(`${BASE_URL}/api/payments/${createdPaymentId}`, { headers: user2Headers });
+    const data = await res.json().catch(() => ({}));
+    record("payments.get.second_user", "GET", `/api/payments/${createdPaymentId}`, res.status, data);
+  }
+
+  // 15d. Normal Get Payment (Owner)
   if (createdPaymentId) {
     const res = await fetch(`${BASE_URL}/api/payments/${createdPaymentId}`, { headers: userHeaders });
     const data = await res.json().catch(() => ({}));
     record("payments.get", "GET", `/api/payments/${createdPaymentId}`, res.status, data);
   }
+
+  // 15e. Second User cannot verify First User's payment
+  if (createdPaymentId) {
+    const res = await fetch(`${BASE_URL}/api/payments/verify`, {
+      method: "POST",
+      headers: { ...user2Headers, "Content-Type": "application/json" },
+      body: JSON.stringify({ paymentId: createdPaymentId }),
+    });
+    const data = await res.json().catch(() => ({}));
+    record("payments.verify.second_user", "POST", "/api/payments/verify", res.status, data);
+  }
+
+  // 15f. Normal Verify Payment (Owner)
   if (createdPaymentId) {
     const res = await fetch(`${BASE_URL}/api/payments/verify`, {
       method: "POST",
@@ -499,15 +611,18 @@ async function runSmokeTest(): Promise<EndpointResult[]> {
     const data = await res.json().catch(() => ({}));
     record("payments.verify", "POST", "/api/payments/verify", res.status, data);
   }
-  {
+
+  // 15g. Forged Public Webhook is rejected and leaves balance unchanged
+  if (createdPaymentId) {
     const res = await fetch(`${BASE_URL}/api/payments/webhook`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ paymentID: createdPaymentId, transactionStatus: "Failed" }),
+      body: JSON.stringify({ paymentId: createdPaymentId, status: "paid" }),
     });
     const data = await res.json().catch(() => ({}));
-    record("payments.webhook", "POST", "/api/payments/webhook", res.status, data);
+    record("payments.webhook.forged", "POST", "/api/payments/webhook", res.status, data);
   }
+
   {
     const res = await fetch(`${BASE_URL}/api/admin/payments`, { headers: adminHeaders });
     const data = await res.json().catch(() => ({}));
@@ -604,6 +719,16 @@ async function runSmokeTest(): Promise<EndpointResult[]> {
     const res = await fetch(`${BASE_URL}/api/poses/jobs/${createdJobId}`, { headers: userHeaders });
     const data = await res.json().catch(() => ({}));
     record("poses.jobStatus", "GET", `/api/poses/jobs/${createdJobId}`, res.status, data);
+
+    // Cross-user privacy: Second user cannot read first user's job status
+    const res2 = await fetch(`${BASE_URL}/api/poses/jobs/${createdJobId}`, { headers: user2Headers });
+    const data2 = await res2.json().catch(() => ({}));
+    record("poses.jobStatus.second_user", "GET", `/api/poses/jobs/${createdJobId}`, res2.status, data2);
+
+    // Cross-user privacy: Second user cannot access first user's pose output file
+    const fileRes = await fetch(`${BASE_URL}/api/posters/files/poses/outputs/${createdJobId}.png`, { headers: user2Headers });
+    const fileData = await fileRes.json().catch(() => ({}));
+    record("poses.files.output_second_user", "GET", `/api/posters/files/poses/outputs/${createdJobId}.png`, fileRes.status, fileData);
   }
   if (createdPoseId) {
     const res = await fetch(`${BASE_URL}/api/poses/${createdPoseId}`, {
@@ -639,6 +764,16 @@ async function runSmokeTest(): Promise<EndpointResult[]> {
     const res = await fetch(`${BASE_URL}/api/posters/${createdPosterId}`, { headers: userHeaders });
     const data = await res.json().catch(() => ({}));
     record("posters.get", "GET", `/api/posters/${createdPosterId}`, res.status, data);
+
+    // Cross-user privacy: Second user cannot read first user's poster
+    const res2 = await fetch(`${BASE_URL}/api/posters/${createdPosterId}`, { headers: user2Headers });
+    const data2 = await res2.json().catch(() => ({}));
+    record("posters.get.second_user", "GET", `/api/posters/${createdPosterId}`, res2.status, data2);
+
+    // Cross-user privacy: Second user cannot access first user's poster file
+    const fileRes = await fetch(`${BASE_URL}/api/posters/files/${createdPosterId}/preview.png`, { headers: user2Headers });
+    const fileData = await fileRes.json().catch(() => ({}));
+    record("posters.files.second_user", "GET", `/api/posters/files/${createdPosterId}/preview.png`, fileRes.status, fileData);
   }
   if (createdPosterId) {
     const res = await fetch(`${BASE_URL}/api/posters/${createdPosterId}/duplicate`, {
@@ -889,15 +1024,56 @@ async function runSmokeTest(): Promise<EndpointResult[]> {
     record("analytics.log.missing_event_type", "POST", "/api/analytics", res.status, data);
   }
 
-  // 20b. Analytics Log Normal
+  // 20b-1. Analytics Log Unknown EventType
   {
     const res = await fetch(`${BASE_URL}/api/analytics`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId: "smoke_session", eventType: "smoke_event" }),
+      body: JSON.stringify({ sessionId: "smoke_session", eventType: "totally_unknown_event" }),
+    });
+    const data = await res.json().catch(() => ({}));
+    record("analytics.log.unknown_event_type", "POST", "/api/analytics", res.status, data);
+  }
+
+  // 20b-2. Analytics Log Very Large Metadata (> 2 KB)
+  {
+    const largeMeta = { bigPayload: "x".repeat(3000) };
+    const res = await fetch(`${BASE_URL}/api/analytics`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId: "smoke_session", eventType: "template_opened", metadata: largeMeta }),
+    });
+    const data = await res.json().catch(() => ({}));
+    record("analytics.log.large_metadata", "POST", "/api/analytics", res.status, data);
+  }
+
+  // 20b-3. Analytics Log Normal (valid allowlisted eventType)
+  {
+    const res = await fetch(`${BASE_URL}/api/analytics`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId: "smoke_session", eventType: "template_opened" }),
     });
     const data = await res.json().catch(() => ({}));
     record("analytics.log", "POST", "/api/analytics", res.status, data);
+  }
+
+  // 20b-4. Analytics Rapid Repeated Calls (Rate limit trigger)
+  {
+    const rapidIp = "127.0.0.198";
+    let lastStatus = 200;
+    let lastData: any = {};
+    for (let i = 0; i < 35; i++) {
+      const res = await fetch(`${BASE_URL}/api/analytics`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-forwarded-for": rapidIp },
+        body: JSON.stringify({ sessionId: "smoke_session", eventType: "template_opened" }),
+      });
+      lastStatus = res.status;
+      lastData = await res.json().catch(() => ({}));
+      if (lastStatus === 429) break;
+    }
+    record("analytics.log.rapid_calls", "POST", "/api/analytics", lastStatus, lastData);
   }
 
   // 20c. Analytics Summary Auth Failures
