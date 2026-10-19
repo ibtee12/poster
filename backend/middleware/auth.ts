@@ -80,15 +80,54 @@ export function withAdmin(
   };
 }
 
-export function withUser(handler: (req: Request, ctx?: any) => Promise<any>) {
+export function withUser(
+  handlerOrMsg: ((req: Request, ctx?: any) => Promise<any>) | string,
+  maybeMsg?: string
+) {
+  if (typeof handlerOrMsg === "string") {
+    const unauthorizedMessage = handlerOrMsg;
+    return (handler: (req: Request, ctx?: any) => Promise<any>) => {
+      return withUser(handler, unauthorizedMessage);
+    };
+  }
+
+  const handler = handlerOrMsg;
+  const unauthorizedMessage = maybeMsg || "Unauthorized. Please log in.";
+
   return async (req: Request, ctx?: any) => {
     const token = await extractUserToken(req);
     const user = await getUserFromToken(token);
     if (!user) {
-      throw new UnauthorizedError("Unauthorized. Please log in.");
+      throw new UnauthorizedError(unauthorizedMessage);
     }
 
     return handler(req, { ...ctx, user });
+  };
+}
+
+export function withUserOrAdmin(
+  handlerOrMsg: ((req: Request, ctx?: any) => Promise<any>) | string,
+  maybeMsg?: string
+) {
+  if (typeof handlerOrMsg === "string") {
+    const unauthorizedMessage = handlerOrMsg;
+    return (handler: (req: Request, ctx?: any) => Promise<any>) => {
+      return withUserOrAdmin(handler, unauthorizedMessage);
+    };
+  }
+
+  const handler = handlerOrMsg;
+  const unauthorizedMessage = maybeMsg || "Unauthorized";
+
+  return async (req: Request, ctx?: any) => {
+    const token = await extractUserToken(req);
+    const user = await getUserFromToken(token);
+    const isAdmin = await isCallerAdmin(req);
+    if (!user && !isAdmin) {
+      throw new UnauthorizedError(unauthorizedMessage);
+    }
+
+    return handler(req, { ...ctx, user, isAdmin });
   };
 }
 
@@ -99,3 +138,4 @@ export function withOptionalUser(handler: (req: Request, ctx?: any) => Promise<a
     return handler(req, { ...ctx, user });
   };
 }
+
