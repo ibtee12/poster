@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 2,
+  "id": "t_template_1792434503266",
+  "name": "New1",
+  "category": "General",
+  "tags": [],
+  "styles": [],
+  "layouts": [
+    {
+      "id": "default",
+      "name": "Default (1200x1600)",
+      "width": 1200,
+      "height": 1600,
+      "blank": "blank.png",
+      "overlay": null,
+      "overlayZ": 50,
+      "slots": [
+        {
+          "id": "photo1",
+          "type": "image",
+          "label": "Main Photo",
+          "x": 0.5141,
+          "y": 0.4226,
+          "w": 0.4816,
+          "h": 0.425,
+          "z": 10,
+          "anchor": "bottom",
+          "allowAdjust": true,
+          "maxOffset": 0.3,
+          "minZoom": 0.4,
+          "maxZoom": 2.5,
+          "required": true
+        },
+        {
+          "id": "text1",
+          "type": "text",
+          "label": "Name Label",
+          "x": 0.0177,
+          "y": 0.8647,
+          "w": 0.9758,
+          "h": 0.1246,
+          "z": 20,
+          "align": "center",
+          "color": "#FFD400",
+          "font": "Noto Sans Bengali",
+          "maxChars": 60,
+          "maxLines": 3,
+          "minFontSize": 14
+        }
+      ]
+    }
+  ],
+  "variants": [],
+  "width": 1200,
+  "height": 1600,
+  "slots": [
+    {
+      "id": "photo1",
+      "type": "image",
+      "label": "Main Photo",
+      "x": 0.5141,
+      "y": 0.4226,
+      "w": 0.4816,
+      "h": 0.425,
+      "z": 10,
+      "anchor": "bottom",
+      "allowAdjust": true,
+      "maxOffset": 0.3,
+      "minZoom": 0.4,
+      "maxZoom": 2.5,
+      "required": true
+    },
+    {
+      "id": "text1",
+      "type": "text",
+      "label": "Name Label",
+      "x": 0.0177,
+      "y": 0.8647,
+      "w": 0.9758,
+      "h": 0.1246,
+      "z": 20,
+      "align": "center",
+      "color": "#FFD400",
+      "font": "Noto Sans Bengali",
+      "maxChars": 60,
+      "maxLines": 3,
+      "minFontSize": 14
+    }
+  ],
+  "overlay": null,
+  "overlayZ": 50
+}

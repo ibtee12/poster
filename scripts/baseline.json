@@ -1,0 +1,953 @@
+[
+  {
+    "name": "settings.public",
+    "method": "GET",
+    "url": "/api/settings",
+    "statusCode": 200,
+    "keys": [
+      "settings"
+    ]
+  },
+  {
+    "name": "admin.login",
+    "method": "POST",
+    "url": "/api/admin/login",
+    "statusCode": 200,
+    "keys": [
+      "success"
+    ],
+    "cookies": {
+      "name": "poster_admin_token",
+      "hasValue": "true",
+      "path": "/",
+      "expires": "mon, 26 oct 2026 18:46:55 gmt",
+      "max-age": "604800",
+      "httponly": "true",
+      "samesite": "lax"
+    }
+  },
+  {
+    "name": "admin.settings.get",
+    "method": "GET",
+    "url": "/api/admin/settings",
+    "statusCode": 200,
+    "keys": [
+      "settings"
+    ]
+  },
+  {
+    "name": "admin.settings.post",
+    "method": "POST",
+    "url": "/api/admin/settings",
+    "statusCode": 200,
+    "keys": [
+      "settings",
+      "success"
+    ]
+  },
+  {
+    "name": "templates.list",
+    "method": "GET",
+    "url": "/api/templates",
+    "statusCode": 200,
+    "keys": [
+      "Array<category,colorMatch,height,id,layouts,name,overlay,overlayZ,schemaVersion,slots,styles,tags,variants,width>"
+    ]
+  },
+  {
+    "name": "admin.templates.create",
+    "method": "POST",
+    "url": "/api/admin/templates",
+    "statusCode": 200,
+    "keys": [
+      "config",
+      "id",
+      "success"
+    ]
+  },
+  {
+    "name": "templates.get",
+    "method": "GET",
+    "url": "/api/templates/t_smoke-test-template_1792435616618",
+    "statusCode": 200,
+    "keys": [
+      "category",
+      "colorMatch",
+      "height",
+      "id",
+      "layouts",
+      "name",
+      "overlayZ",
+      "schemaVersion",
+      "slots",
+      "styles",
+      "tags",
+      "variants",
+      "width"
+    ]
+  },
+  {
+    "name": "admin.templates.duplicate",
+    "method": "POST",
+    "url": "/api/admin/templates/t_smoke-test-template_1792435616618/duplicate",
+    "statusCode": 200,
+    "keys": [
+      "config",
+      "id",
+      "success"
+    ]
+  },
+  {
+    "name": "admin.templates.delete",
+    "method": "DELETE",
+    "url": "/api/admin/templates/t_smoke-test-temp_copy_1792435617283",
+    "statusCode": 200,
+    "keys": [
+      "success"
+    ]
+  },
+  {
+    "name": "auth.signup.missing_fields",
+    "method": "POST",
+    "url": "/api/auth/signup",
+    "statusCode": 400,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Please enter a valid email address."
+  },
+  {
+    "name": "auth.signup.invalid_email",
+    "method": "POST",
+    "url": "/api/auth/signup",
+    "statusCode": 400,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Please enter a valid email address."
+  },
+  {
+    "name": "auth.signup.short_password",
+    "method": "POST",
+    "url": "/api/auth/signup",
+    "statusCode": 400,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Password must be at least 6 characters long."
+  },
+  {
+    "name": "auth.signup",
+    "method": "POST",
+    "url": "/api/auth/signup",
+    "statusCode": 200,
+    "keys": [
+      "success",
+      "user"
+    ],
+    "cookies": {
+      "name": "poster_user_token",
+      "hasValue": "true",
+      "path": "/",
+      "expires": "wed, 18 nov 2026 18:46:59 gmt",
+      "max-age": "2592000",
+      "httponly": "true",
+      "samesite": "lax"
+    }
+  },
+  {
+    "name": "auth.signup.duplicate",
+    "method": "POST",
+    "url": "/api/auth/signup",
+    "statusCode": 400,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "An account with this email already exists. Please log in."
+  },
+  {
+    "name": "auth.me.no_cookie",
+    "method": "GET",
+    "url": "/api/auth/me",
+    "statusCode": 200,
+    "keys": [
+      "user"
+    ]
+  },
+  {
+    "name": "auth.me.invalid_cookie",
+    "method": "GET",
+    "url": "/api/auth/me",
+    "statusCode": 200,
+    "keys": [
+      "user"
+    ]
+  },
+  {
+    "name": "auth.me",
+    "method": "GET",
+    "url": "/api/auth/me",
+    "statusCode": 200,
+    "keys": [
+      "user"
+    ]
+  },
+  {
+    "name": "auth.login.missing_fields",
+    "method": "POST",
+    "url": "/api/auth/login",
+    "statusCode": 400,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Email and password are required."
+  },
+  {
+    "name": "auth.login.unknown_email",
+    "method": "POST",
+    "url": "/api/auth/login",
+    "statusCode": 401,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Invalid email or password."
+  },
+  {
+    "name": "auth.login.wrong_password",
+    "method": "POST",
+    "url": "/api/auth/login",
+    "statusCode": 401,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Invalid email or password."
+  },
+  {
+    "name": "auth.login",
+    "method": "POST",
+    "url": "/api/auth/login",
+    "statusCode": 200,
+    "keys": [
+      "success",
+      "user"
+    ],
+    "cookies": {
+      "name": "poster_user_token",
+      "hasValue": "true",
+      "path": "/",
+      "expires": "wed, 18 nov 2026 18:47:01 gmt",
+      "max-age": "2592000",
+      "httponly": "true",
+      "samesite": "lax"
+    }
+  },
+  {
+    "name": "credits.balance",
+    "method": "GET",
+    "url": "/api/credits/balance",
+    "statusCode": 200,
+    "keys": [
+      "authenticated",
+      "balance",
+      "email",
+      "transactions",
+      "userId"
+    ]
+  },
+  {
+    "name": "credits.spendDownload",
+    "method": "POST",
+    "url": "/api/credits/spend-download",
+    "statusCode": 200,
+    "keys": [
+      "allowed",
+      "cost"
+    ]
+  },
+  {
+    "name": "admin.credits.adjust",
+    "method": "POST",
+    "url": "/api/admin/credits/adjust",
+    "statusCode": 200,
+    "keys": [
+      "email",
+      "message",
+      "newBalance",
+      "success",
+      "userId"
+    ]
+  },
+  {
+    "name": "packages.list",
+    "method": "GET",
+    "url": "/api/packages",
+    "statusCode": 200,
+    "keys": [
+      "packages"
+    ]
+  },
+  {
+    "name": "admin.packages.create.no_cookie",
+    "method": "POST",
+    "url": "/api/admin/packages",
+    "statusCode": 401,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Unauthorized"
+  },
+  {
+    "name": "admin.packages.create.invalid_cookie",
+    "method": "POST",
+    "url": "/api/admin/packages",
+    "statusCode": 401,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Unauthorized"
+  },
+  {
+    "name": "admin.packages.create.user_cookie",
+    "method": "POST",
+    "url": "/api/admin/packages",
+    "statusCode": 401,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Unauthorized"
+  },
+  {
+    "name": "admin.packages.create.missing_fields",
+    "method": "POST",
+    "url": "/api/admin/packages",
+    "statusCode": 400,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "name, credits and price are required"
+  },
+  {
+    "name": "admin.packages.create",
+    "method": "POST",
+    "url": "/api/admin/packages",
+    "statusCode": 201,
+    "keys": [
+      "package",
+      "success"
+    ]
+  },
+  {
+    "name": "admin.packages.patch.no_cookie",
+    "method": "PATCH",
+    "url": "/api/admin/packages/cmvflw439000erb76qtg1c9eu",
+    "statusCode": 401,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Unauthorized"
+  },
+  {
+    "name": "admin.packages.patch.invalid_cookie",
+    "method": "PATCH",
+    "url": "/api/admin/packages/cmvflw439000erb76qtg1c9eu",
+    "statusCode": 401,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Unauthorized"
+  },
+  {
+    "name": "admin.packages.patch.user_cookie",
+    "method": "PATCH",
+    "url": "/api/admin/packages/cmvflw439000erb76qtg1c9eu",
+    "statusCode": 401,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Unauthorized"
+  },
+  {
+    "name": "admin.packages.patch",
+    "method": "PATCH",
+    "url": "/api/admin/packages/cmvflw439000erb76qtg1c9eu",
+    "statusCode": 200,
+    "keys": [
+      "package",
+      "success"
+    ]
+  },
+  {
+    "name": "payments.create",
+    "method": "POST",
+    "url": "/api/payments/create",
+    "statusCode": 200,
+    "keys": [
+      "paymentId",
+      "redirectUrl",
+      "success"
+    ]
+  },
+  {
+    "name": "payments.get",
+    "method": "GET",
+    "url": "/api/payments/cmvflw5ko000frb76siiglgku",
+    "statusCode": 200,
+    "keys": [
+      "payment"
+    ]
+  },
+  {
+    "name": "payments.verify",
+    "method": "POST",
+    "url": "/api/payments/verify",
+    "statusCode": 200,
+    "keys": [
+      "alreadyProcessed",
+      "balance",
+      "message",
+      "success"
+    ]
+  },
+  {
+    "name": "payments.webhook",
+    "method": "POST",
+    "url": "/api/payments/webhook",
+    "statusCode": 200,
+    "keys": [
+      "message"
+    ]
+  },
+  {
+    "name": "admin.payments.list",
+    "method": "GET",
+    "url": "/api/admin/payments",
+    "statusCode": 200,
+    "keys": [
+      "payments"
+    ]
+  },
+  {
+    "name": "admin.payments.approve",
+    "method": "POST",
+    "url": "/api/admin/payments/approve",
+    "statusCode": 200,
+    "keys": [
+      "alreadyProcessed",
+      "message",
+      "success"
+    ]
+  },
+  {
+    "name": "admin.packages.delete.no_cookie",
+    "method": "DELETE",
+    "url": "/api/admin/packages/cmvflw439000erb76qtg1c9eu",
+    "statusCode": 401,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Unauthorized"
+  },
+  {
+    "name": "admin.packages.delete.invalid_cookie",
+    "method": "DELETE",
+    "url": "/api/admin/packages/cmvflw439000erb76qtg1c9eu",
+    "statusCode": 401,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Unauthorized"
+  },
+  {
+    "name": "admin.packages.delete.user_cookie",
+    "method": "DELETE",
+    "url": "/api/admin/packages/cmvflw439000erb76qtg1c9eu",
+    "statusCode": 401,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Unauthorized"
+  },
+  {
+    "name": "admin.packages.delete",
+    "method": "DELETE",
+    "url": "/api/admin/packages/cmvflw439000erb76qtg1c9eu",
+    "statusCode": 200,
+    "keys": [
+      "deactivated",
+      "success"
+    ]
+  },
+  {
+    "name": "poses.list",
+    "method": "GET",
+    "url": "/api/poses",
+    "statusCode": 200,
+    "keys": [
+      "poses"
+    ]
+  },
+  {
+    "name": "admin.poses.create",
+    "method": "POST",
+    "url": "/api/poses",
+    "statusCode": 201,
+    "keys": [
+      "pose",
+      "success"
+    ]
+  },
+  {
+    "name": "admin.poses.patch",
+    "method": "PATCH",
+    "url": "/api/poses/cmvflwchj000irb76izulvovx",
+    "statusCode": 200,
+    "keys": [
+      "pose",
+      "success"
+    ]
+  },
+  {
+    "name": "poses.generate",
+    "method": "POST",
+    "url": "/api/poses/generate",
+    "statusCode": 202,
+    "keys": [
+      "cost",
+      "jobId",
+      "newBalance",
+      "status",
+      "success"
+    ]
+  },
+  {
+    "name": "poses.jobStatus",
+    "method": "GET",
+    "url": "/api/poses/jobs/cmvflwfxd000krb76fuzyaf5s",
+    "statusCode": 200,
+    "keys": [
+      "createdAt",
+      "creditCost",
+      "error",
+      "id",
+      "outputImagePath",
+      "poseName",
+      "status",
+      "updatedAt"
+    ]
+  },
+  {
+    "name": "admin.poses.delete",
+    "method": "DELETE",
+    "url": "/api/poses/cmvflwchj000irb76izulvovx",
+    "statusCode": 200,
+    "keys": [
+      "success"
+    ]
+  },
+  {
+    "name": "posters.create",
+    "method": "POST",
+    "url": "/api/posters",
+    "statusCode": 200,
+    "keys": [
+      "poster",
+      "success"
+    ]
+  },
+  {
+    "name": "posters.list",
+    "method": "GET",
+    "url": "/api/posters",
+    "statusCode": 200,
+    "keys": [
+      "posters"
+    ]
+  },
+  {
+    "name": "posters.get",
+    "method": "GET",
+    "url": "/api/posters/cmvflwho6000lrb76a4fczrpn",
+    "statusCode": 200,
+    "keys": [
+      "poster"
+    ]
+  },
+  {
+    "name": "posters.duplicate",
+    "method": "POST",
+    "url": "/api/posters/cmvflwho6000lrb76a4fczrpn/duplicate",
+    "statusCode": 200,
+    "keys": [
+      "poster",
+      "success"
+    ]
+  },
+  {
+    "name": "posters.deleteDuplicate",
+    "method": "DELETE",
+    "url": "/api/posters/cmvflwkqz000nrb767ipl5c9l",
+    "statusCode": 200,
+    "keys": [
+      "success"
+    ]
+  },
+  {
+    "name": "posters.deleteOriginal",
+    "method": "DELETE",
+    "url": "/api/posters/cmvflwho6000lrb76a4fczrpn",
+    "statusCode": 200,
+    "keys": [
+      "success"
+    ]
+  },
+  {
+    "name": "reports.submit.missing_reason",
+    "method": "POST",
+    "url": "/api/reports",
+    "statusCode": 400,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Please provide a reason for the report"
+  },
+  {
+    "name": "reports.submit.nonexistent_poster",
+    "method": "POST",
+    "url": "/api/reports",
+    "statusCode": 404,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Poster not found"
+  },
+  {
+    "name": "reports.submit",
+    "method": "POST",
+    "url": "/api/reports",
+    "statusCode": 200,
+    "keys": [
+      "reportId",
+      "success"
+    ]
+  },
+  {
+    "name": "reports.adminList.no_cookie",
+    "method": "GET",
+    "url": "/api/reports",
+    "statusCode": 401,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Unauthorized"
+  },
+  {
+    "name": "reports.adminList.invalid_cookie",
+    "method": "GET",
+    "url": "/api/reports",
+    "statusCode": 401,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Unauthorized"
+  },
+  {
+    "name": "reports.adminList.user_cookie",
+    "method": "GET",
+    "url": "/api/reports",
+    "statusCode": 401,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Unauthorized"
+  },
+  {
+    "name": "reports.adminList",
+    "method": "GET",
+    "url": "/api/reports",
+    "statusCode": 200,
+    "keys": [
+      "reports",
+      "success"
+    ]
+  },
+  {
+    "name": "reports.adminResolve.no_cookie",
+    "method": "PATCH",
+    "url": "/api/reports/cmvflwndv000orb762z2kois8",
+    "statusCode": 401,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Unauthorized"
+  },
+  {
+    "name": "reports.adminResolve.invalid_cookie",
+    "method": "PATCH",
+    "url": "/api/reports/cmvflwndv000orb762z2kois8",
+    "statusCode": 401,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Unauthorized"
+  },
+  {
+    "name": "reports.adminResolve.user_cookie",
+    "method": "PATCH",
+    "url": "/api/reports/cmvflwndv000orb762z2kois8",
+    "statusCode": 401,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Unauthorized"
+  },
+  {
+    "name": "reports.adminResolve.nonexistent",
+    "method": "PATCH",
+    "url": "/api/reports/nonexistent_report_id_999",
+    "statusCode": 404,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Report not found"
+  },
+  {
+    "name": "reports.adminResolve",
+    "method": "PATCH",
+    "url": "/api/reports/cmvflwndv000orb762z2kois8",
+    "statusCode": 200,
+    "keys": [
+      "report",
+      "success"
+    ]
+  },
+  {
+    "name": "safety.blocklist.get",
+    "method": "GET",
+    "url": "/api/safety/blocklist",
+    "statusCode": 200,
+    "keys": [
+      "items",
+      "words"
+    ]
+  },
+  {
+    "name": "safety.blocklist.post.no_cookie",
+    "method": "POST",
+    "url": "/api/safety/blocklist",
+    "statusCode": 401,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Unauthorized"
+  },
+  {
+    "name": "safety.blocklist.post.invalid_cookie",
+    "method": "POST",
+    "url": "/api/safety/blocklist",
+    "statusCode": 401,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Unauthorized"
+  },
+  {
+    "name": "safety.blocklist.post.user_cookie",
+    "method": "POST",
+    "url": "/api/safety/blocklist",
+    "statusCode": 401,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Unauthorized"
+  },
+  {
+    "name": "safety.blocklist.post.missing_word",
+    "method": "POST",
+    "url": "/api/safety/blocklist",
+    "statusCode": 400,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Word is required"
+  },
+  {
+    "name": "safety.blocklist.post",
+    "method": "POST",
+    "url": "/api/safety/blocklist",
+    "statusCode": 200,
+    "keys": [
+      "item",
+      "success"
+    ]
+  },
+  {
+    "name": "safety.blocklist.delete.no_cookie",
+    "method": "DELETE",
+    "url": "/api/safety/blocklist",
+    "statusCode": 401,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Unauthorized"
+  },
+  {
+    "name": "safety.blocklist.delete.invalid_cookie",
+    "method": "DELETE",
+    "url": "/api/safety/blocklist",
+    "statusCode": 401,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Unauthorized"
+  },
+  {
+    "name": "safety.blocklist.delete.user_cookie",
+    "method": "DELETE",
+    "url": "/api/safety/blocklist",
+    "statusCode": 401,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Unauthorized"
+  },
+  {
+    "name": "safety.blocklist.delete.missing_param",
+    "method": "DELETE",
+    "url": "/api/safety/blocklist",
+    "statusCode": 400,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Word query param is required"
+  },
+  {
+    "name": "safety.blocklist.delete",
+    "method": "DELETE",
+    "url": "/api/safety/blocklist",
+    "statusCode": 200,
+    "keys": [
+      "success"
+    ]
+  },
+  {
+    "name": "analytics.log.missing_event_type",
+    "method": "POST",
+    "url": "/api/analytics",
+    "statusCode": 400,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "eventType is required"
+  },
+  {
+    "name": "analytics.log",
+    "method": "POST",
+    "url": "/api/analytics",
+    "statusCode": 200,
+    "keys": [
+      "success"
+    ]
+  },
+  {
+    "name": "analytics.summary.no_cookie",
+    "method": "GET",
+    "url": "/api/analytics?range=7d",
+    "statusCode": 401,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Unauthorized"
+  },
+  {
+    "name": "analytics.summary.invalid_cookie",
+    "method": "GET",
+    "url": "/api/analytics?range=7d",
+    "statusCode": 401,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Unauthorized"
+  },
+  {
+    "name": "analytics.summary.user_cookie",
+    "method": "GET",
+    "url": "/api/analytics?range=7d",
+    "statusCode": 401,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Unauthorized"
+  },
+  {
+    "name": "analytics.summary.invalid_range",
+    "method": "GET",
+    "url": "/api/analytics?range=invalid_date_range",
+    "statusCode": 200,
+    "keys": [
+      "range",
+      "success",
+      "summary"
+    ]
+  },
+  {
+    "name": "analytics.summary",
+    "method": "GET",
+    "url": "/api/analytics?range=7d",
+    "statusCode": 200,
+    "keys": [
+      "range",
+      "success",
+      "summary"
+    ]
+  },
+  {
+    "name": "ai.moderateImage",
+    "method": "POST",
+    "url": "/api/moderate-image",
+    "statusCode": 200,
+    "keys": [
+      "allowed"
+    ]
+  },
+  {
+    "name": "admin.templates.cleanup",
+    "method": "DELETE",
+    "url": "/api/admin/templates/t_smoke-test-template_1792435616618",
+    "statusCode": 200,
+    "keys": [
+      "success"
+    ]
+  },
+  {
+    "name": "auth.logout",
+    "method": "POST",
+    "url": "/api/auth/logout",
+    "statusCode": 200,
+    "keys": [
+      "success"
+    ],
+    "cookies": {
+      "name": "poster_user_token",
+      "hasValue": "false",
+      "path": "/",
+      "max-age": "0",
+      "httponly": "true",
+      "samesite": "lax"
+    }
+  },
+  {
+    "name": "admin.logout",
+    "method": "POST",
+    "url": "/api/admin/logout",
+    "statusCode": 200,
+    "keys": [
+      "success"
+    ],
+    "cookies": {
+      "name": "poster_admin_token",
+      "hasValue": "false",
+      "path": "/",
+      "expires": "thu, 01 jan 1970 00:00:00 gmt"
+    }
+  }
+]

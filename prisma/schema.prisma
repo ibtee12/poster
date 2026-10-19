@@ -1,0 +1,200 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  posters      Poster[]
+  reports      Report[]
+  wallet       Wallet?
+  transactions CreditTransaction[]
+  payments     Payment[]
+  poseJobs     PoseJob[]
+}
+
+model Wallet {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  balance   Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model CreditTransaction {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount    Int      // positive for additions, negative for deductions
+  type      String   // purchase | spend | refund | bonus
+  reason    String
+  reference String?  // paymentId, poseJobId, downloadId, etc.
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([type])
+  @@index([reference])
+}
+
+model Package {
+  id        String    @id @default(cuid())
+  name      String
+  credits   Int
+  price     Float
+  currency  String    @default("BDT")
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  payments  Payment[]
+
+  @@index([active])
+}
+
+model Payment {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  packageId   String
+  package     Package  @relation(fields: [packageId], references: [id], onDelete: Restrict)
+  amount      Float
+  currency    String   @default("BDT")
+  status      String   @default("pending") // pending | paid | failed | refunded
+  provider    String   // manual | bkash
+  providerRef String?
+  metadata    Json?    @default("{}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([providerRef])
+}
+
+model Pose {
+  id                 String    @id @default(cuid())
+  name               String
+  category           String    @default("General")
+  previewImagePath   String
+  referenceImagePath String
+  active             Boolean   @default(true)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  jobs               PoseJob[]
+
+  @@index([active])
+}
+
+model PoseJob {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  poseId          String
+  pose            Pose     @relation(fields: [poseId], references: [id], onDelete: Cascade)
+  status          String   @default("pending") // pending | processing | succeeded | failed
+  inputImagePath  String
+  outputImagePath String?
+  creditCost      Int      @default(10)
+  error           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+model SystemSetting {
+  id                     String   @id @default("default")
+  cleanDownloadCreditCost Int      @default(0) // Default 0 for testing, can be tuned by admin
+  poseGenerationCreditCost Int      @default(10)
+  freeSignupCredits      Int      @default(0) // Default 0 for testing
+  dailySpendingCapPerUser Int      @default(100)
+  aiKillSwitch           Boolean  @default(false)
+  updatedAt              DateTime @updatedAt
+}
+
+model Poster {
+  id               String    @id @default(cuid())
+  userId           String
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  templateId       String
+  layoutId         String?
+  variantId        String?
+  textValues       Json      @default("{}")
+  adjustments      Json      @default("{}")
+  cutoutPaths      Json?     @default("{}")
+  previewImagePath String
+  finalImagePath   String?
+  title            String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  reports          Report[]
+
+  @@index([userId])
+  @@index([templateId])
+}
+
+model Report {
+  id             String    @id @default(cuid())
+  posterId       String?
+  poster         Poster?   @relation(fields: [posterId], references: [id], onDelete: SetNull)
+  userId         String?
+  user           User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  reason         String
+  details        String?
+  status         String    @default("pending") // pending | resolved | dismissed
+  resolutionNote String?
+  createdAt      DateTime  @default(now())
+  resolvedAt     DateTime?
+
+  @@index([status])
+  @@index([posterId])
+}
+
+model AnalyticsEvent {
+  id         String    @id @default(cuid())
+  sessionId  String
+  eventType  String    // template_opened | photo_uploaded | bg_removed | text_entered | poster_exported | poster_saved | error
+  templateId String?
+  layoutId   String?
+  format     String?   // png | jpg
+  errorType  String?
+  metadata   Json?     @default("{}")
+  createdAt  DateTime  @default(now())
+
+  @@index([eventType])
+  @@index([templateId])
+  @@index([createdAt])
+}
+
+model UsageCounter {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  count     Int      @default(0)
+  expiresAt DateTime
+  updatedAt DateTime @updatedAt
+
+  @@index([expiresAt])
+}
+
+model BlocklistWord {
+  id        String   @id @default(cuid())
+  word      String   @unique
+  category  String?  @default("general")
+  createdAt DateTime @default(now())
+
+  @@index([word])
+}
