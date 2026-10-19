@@ -161,6 +161,96 @@ export async function deductCredits(
 }
 
 /**
+ * Atomically checks the user's 24h spending cap and deducts credits in a single transaction.
+ * Guarantees no race condition can bypass the daily spending cap or wallet balance.
+ */
+export async function deductCreditsWithCap(
+  userId: string,
+  amount: number,
+  reason: string,
+  reference?: string
+): Promise<TransactionResult & { capExceeded?: boolean; currentSpent?: number; cap?: number }> {
+  if (amount <= 0) {
+    const bal = await getUserBalance(userId);
+    return { success: true, newBalance: bal };
+  }
+
+  try {
+    return await prisma.$transaction(async (tx) => {
+      // 1. Check spending cap inside transaction
+      const settings = await tx.systemSetting.findUnique({
+        where: { id: "default" },
+      });
+      const cap = settings?.dailySpendingCapPerUser ?? 100;
+
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const spendAggregate = await tx.creditTransaction.aggregate({
+        where: {
+          userId,
+          type: "spend",
+          createdAt: { gte: oneDayAgo },
+        },
+        _sum: { amount: true },
+      });
+
+      const totalSpent = Math.abs(spendAggregate._sum.amount || 0);
+      if (totalSpent + amount > cap) {
+        return {
+          success: false,
+          capExceeded: true,
+          currentSpent: totalSpent,
+          cap,
+          error: `Daily credit spending limit reached. You have spent ${totalSpent} of ${cap} credits today.`,
+        };
+      }
+
+      // 2. Check wallet balance inside transaction
+      const wallet = await tx.wallet.findUnique({
+        where: { userId },
+      });
+
+      if (!wallet || wallet.balance < amount) {
+        return {
+          success: false,
+          error: "Insufficient credit balance. Please purchase credits to continue.",
+        };
+      }
+
+      // 3. Decrement wallet balance
+      const updated = await tx.wallet.update({
+        where: { userId },
+        data: {
+          balance: { decrement: amount },
+        },
+      });
+
+      // 4. Create transaction record
+      const transaction = await tx.creditTransaction.create({
+        data: {
+          userId,
+          amount: -amount,
+          type: "spend",
+          reason,
+          reference: reference || null,
+        },
+      });
+
+      return {
+        success: true,
+        newBalance: updated.balance,
+        transactionId: transaction.id,
+      };
+    });
+  } catch (err: any) {
+    console.error("Failed to deduct credits atomically:", err);
+    return {
+      success: false,
+      error: "Credit deduction failed",
+    };
+  }
+}
+
+/**
  * Checks if user has exceeded their daily spending cap.
  */
 export async function checkDailySpendingCap(

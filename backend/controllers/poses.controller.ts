@@ -9,12 +9,14 @@ import {
   getSystemSettings,
   checkDailySpendingCap,
   deductCredits,
+  deductCreditsWithCap,
   addCredits,
   getUserBalance,
 } from "@/backend/services/credits.service";
 import { imageModerator } from "@/backend/services/moderation.service";
 import { posterStorage } from "@/backend/services/posterStorage.service";
 import { getPoseGenerator } from "@/backend/services/poseGenerator.service";
+import { validateImageBuffer } from "@/backend/common/images";
 
 async function processPoseJobAsync(
   jobId: string,
@@ -70,14 +72,19 @@ async function processPoseJobAsync(
   } catch (err: any) {
     console.error(`PoseJob ${jobId} failed:`, err);
 
-    await prisma.poseJob.update({
-      where: { id: jobId },
-      data: {
-        status: "failed",
-        error: err.message || "AI pose generation encountered an internal error.",
-      },
-    });
+    try {
+      await prisma.poseJob.update({
+        where: { id: jobId },
+        data: {
+          status: "failed",
+          error: err.message || "AI pose generation encountered an internal error.",
+        },
+      });
+    } catch (statusErr) {
+      console.error(`Failed to update job status to failed for ${jobId}:`, statusErr);
+    }
 
+    // Refund independent of the status update
     try {
       await addCredits(
         userId,
@@ -301,30 +308,6 @@ export async function generatePoseController(req: Request) {
 
     const creditCost = settings.poseGenerationCreditCost;
 
-    const capCheck = await checkDailySpendingCap(user.id, creditCost);
-    if (!capCheck.allowed) {
-      return NextResponse.json(
-        {
-          error: `Daily credit spending limit reached. You have spent ${capCheck.currentSpent} of ${capCheck.cap} credits today.`,
-          currentSpent: capCheck.currentSpent,
-          cap: capCheck.cap,
-        },
-        { status: 403 }
-      );
-    }
-
-    const currentBalance = await getUserBalance(user.id);
-    if (currentBalance < creditCost) {
-      return NextResponse.json(
-        {
-          error: "Insufficient credit balance. Please purchase credits to generate AI poses.",
-          cost: creditCost,
-          balance: currentBalance,
-        },
-        { status: 402 }
-      );
-    }
-
     const contentType = req.headers.get("content-type") || "";
     let poseId = "";
     let photoBuffer: Buffer | null = null;
@@ -365,12 +348,24 @@ export async function generatePoseController(req: Request) {
       return NextResponse.json({ error: "Invalid photo content." }, { status: 400 });
     }
 
+    // Size limit and magic bytes validation
+    const imgValidation = validateImageBuffer(photoBuffer, 10 * 1024 * 1024);
+    if (!imgValidation.valid) {
+      return NextResponse.json({ error: imgValidation.error }, { status: 400 });
+    }
+    mimeType = imgValidation.mimeType || mimeType;
+
     const pose = await prisma.pose.findUnique({
       where: { id: poseId },
     });
 
     if (!pose) {
       return NextResponse.json({ error: "Pose not found." }, { status: 404 });
+    }
+
+    // Reject inactive poses
+    if (!pose.active) {
+      return NextResponse.json({ error: "Selected pose is currently inactive." }, { status: 400 });
     }
 
     const inputMod = await imageModerator.moderateImage(photoBuffer, mimeType);
@@ -381,7 +376,8 @@ export async function generatePoseController(req: Request) {
       );
     }
 
-    const deduction = await deductCredits(
+    // Atomic spending cap check and credit deduction
+    const deduction = await deductCreditsWithCap(
       user.id,
       creditCost,
       `AI Pose Generation: ${pose.name}`,
@@ -389,36 +385,69 @@ export async function generatePoseController(req: Request) {
     );
 
     if (!deduction.success) {
+      if (deduction.capExceeded) {
+        return NextResponse.json(
+          {
+            error: deduction.error,
+            currentSpent: deduction.currentSpent,
+            cap: deduction.cap,
+          },
+          { status: 403 }
+        );
+      }
       return NextResponse.json(
-        { error: deduction.error || "Failed to process credit deduction." },
+        {
+          error: deduction.error || "Insufficient credit balance. Please purchase credits to generate AI poses.",
+          cost: creditCost,
+        },
         { status: 402 }
       );
     }
 
-    const inPath = `poses/inputs/${Date.now()}_${crypto.randomUUID()}.png`;
-    const inputUrl = await posterStorage.saveFile(inPath, photoBuffer, mimeType);
+    // Saving input image, creating job, and starting async generation with refund on ANY failure
+    let job;
+    try {
+      const inPath = `poses/inputs/${Date.now()}_${crypto.randomUUID()}.${imgValidation.format || "png"}`;
+      const inputUrl = await posterStorage.saveFile(inPath, photoBuffer, mimeType);
 
-    const job = await prisma.poseJob.create({
-      data: {
-        userId: user.id,
-        poseId: pose.id,
-        status: "processing",
-        inputImagePath: inputUrl,
+      job = await prisma.poseJob.create({
+        data: {
+          userId: user.id,
+          poseId: pose.id,
+          status: "processing",
+          inputImagePath: inputUrl,
+          creditCost,
+        },
+      });
+
+      processPoseJobAsync(
+        job.id,
+        user.id,
+        pose.id,
+        photoBuffer,
+        mimeType,
         creditCost,
-      },
-    });
-
-    processPoseJobAsync(
-      job.id,
-      user.id,
-      pose.id,
-      photoBuffer,
-      mimeType,
-      creditCost,
-      prompt
-    ).catch((err) => {
-      console.error("Unhandled error in background pose job:", err);
-    });
+        prompt
+      ).catch((err) => {
+        console.error("Unhandled error in background pose job:", err);
+      });
+    } catch (saveOrJobErr: any) {
+      console.error("Failed to save input or create pose job:", saveOrJobErr);
+      try {
+        await addCredits(
+          user.id,
+          creditCost,
+          "refund",
+          "Refund due to system error initiating pose job"
+        );
+      } catch (refundErr) {
+        console.error("Failed to refund credits:", refundErr);
+      }
+      return NextResponse.json(
+        { error: "Failed to initiate AI pose generation. Credits refunded." },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json(
       {
@@ -432,7 +461,7 @@ export async function generatePoseController(req: Request) {
     );
   } catch (err: any) {
     console.error("Failed to initiate pose generation:", err);
-    return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
@@ -464,6 +493,31 @@ export async function getPoseJobStatusController(
 
     if (!isAdmin && job.userId !== user?.id) {
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
+    }
+
+    // Fail and refund jobs stuck in "processing" for more than 10 minutes
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+    if (job.status === "processing" && job.createdAt < tenMinutesAgo) {
+      try {
+        await prisma.poseJob.update({
+          where: { id: job.id },
+          data: {
+            status: "failed",
+            error: "Job timed out after 10 minutes.",
+          },
+        });
+        job.status = "failed";
+        job.error = "Job timed out after 10 minutes.";
+        await addCredits(
+          job.userId,
+          job.creditCost,
+          "refund",
+          "Refund for timed out pose generation job",
+          job.id
+        );
+      } catch (timeoutErr) {
+        console.error("Error timing out stuck pose job:", timeoutErr);
+      }
     }
 
     return NextResponse.json({
