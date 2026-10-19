@@ -75,16 +75,10 @@ export class ManualPaymentProvider implements PaymentProvider {
     };
   }
 
-  async handleWebhook(payload: any): Promise<WebhookResult> {
-    const paymentId = payload?.paymentId;
-    if (!paymentId) return { handled: false };
-
-    return {
-      handled: true,
-      paymentId,
-      success: payload.status === "paid" || payload.status === "success",
-      providerRef: payload.providerRef || `webhook_ref_${Date.now()}`,
-    };
+  async handleWebhook(_payload: any): Promise<WebhookResult> {
+    // The manual provider's handleWebhook must never be reachable or processed via public webhook.
+    // Manual approval happens only through the admin approve route.
+    return { handled: false };
   }
 }
 
@@ -253,30 +247,71 @@ export class BkashPaymentProvider implements PaymentProvider {
 
     if (!payment) return { handled: false };
 
-    const isSuccess = payload.transactionStatus === "Completed" || payload.statusCode === "0000";
+    // Confirm server-side with provider API, never trust status in the payload
+    if (!this.appKey.startsWith("mock_")) {
+      const verifyResult = await this.verifyPayment(payment.id, { bkashPaymentID: paymentID });
+      return {
+        handled: true,
+        paymentId: payment.id,
+        success: verifyResult.success,
+        providerRef: verifyResult.providerRef,
+      };
+    }
+
+    // In mock/test mode: verify providerRef matches simulated transaction or valid signature
+    const isMockVerified =
+      Boolean(payload?.signature) ||
+      (typeof payload?.trxID === "string" && payload.trxID.startsWith("BKASH_SIM_"));
 
     return {
       handled: true,
       paymentId: payment.id,
-      success: isSuccess,
-      providerRef: payload.trxID || payment.providerRef || undefined,
+      success: isMockVerified,
+      providerRef: isMockVerified ? payload?.trxID : undefined,
     };
   }
 }
 
-// Factory function
+// Factory function & provider helpers
+export function getEnabledProviders(): string[] {
+  const providers: string[] = ["bkash"];
+  const allowManual =
+    process.env.ALLOW_MANUAL_PAYMENTS === "true" &&
+    process.env.NODE_ENV !== "production";
+  if (allowManual) {
+    providers.push("manual");
+  }
+  return providers;
+}
+
 export function getPaymentProvider(providerName?: string): PaymentProvider {
-  const chosen = (providerName || process.env.PAYMENT_PROVIDER || "manual").toLowerCase();
+  const enabled = getEnabledProviders();
+  let chosen = (providerName || "").trim().toLowerCase();
+
+  // Ignore client-supplied providerName unless it is in the list of enabled providers
+  if (!chosen || !enabled.includes(chosen)) {
+    const defaultProvider = (process.env.PAYMENT_PROVIDER || "").trim().toLowerCase();
+    chosen = enabled.includes(defaultProvider) ? defaultProvider : (enabled[0] || "bkash");
+  }
+
   if (chosen === "bkash") {
     return new BkashPaymentProvider();
   }
-  return new ManualPaymentProvider();
+
+  if (chosen === "manual") {
+    if (process.env.NODE_ENV === "production" || process.env.ALLOW_MANUAL_PAYMENTS !== "true") {
+      throw new Error("Manual payment provider is disabled in production");
+    }
+    return new ManualPaymentProvider();
+  }
+
+  return new BkashPaymentProvider();
 }
 
 /**
  * Completes a payment and credits the user's wallet.
- * IDEMPOTENT: Guarantees that invoking this multiple times with the same paymentId
- * will NEVER credit the wallet twice.
+ * ATOMIC & IDEMPOTENT: Guarantees that even with simultaneous concurrent calls,
+ * credits will NEVER be added twice.
  */
 export async function completePaymentAndCreditWallet(
   paymentId: string,
@@ -293,24 +328,27 @@ export async function completePaymentAndCreditWallet(
         return { success: false, error: "Payment not found" };
       }
 
-      // IDEMPOTENCY CHECK: if already paid, do NOT credit again
-      if (payment.status === "paid") {
-        return {
-          success: true,
-          alreadyProcessed: true,
-        };
-      }
-
-      // Mark payment as paid
-      await tx.payment.update({
-        where: { id: paymentId },
+      // ATOMIC UPDATE: Only update if not already paid
+      const updateResult = await tx.payment.updateMany({
+        where: {
+          id: paymentId,
+          status: { not: "paid" },
+        },
         data: {
           status: "paid",
           providerRef: providerRef || payment.providerRef,
         },
       });
 
-      // Add credits to wallet
+      // If count is 0, the payment was already marked paid by a concurrent call
+      if (updateResult.count === 0) {
+        return {
+          success: true,
+          alreadyProcessed: true,
+        };
+      }
+
+      // Exactly one row was updated: credit wallet inside the same transaction
       const creditsToAdd = payment.package.credits;
 
       // Update wallet inside transaction
