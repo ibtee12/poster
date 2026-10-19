@@ -20,7 +20,7 @@
       "name": "poster_admin_token",
       "hasValue": "true",
       "path": "/",
-      "expires": "tue, 20 oct 2026 19:23:16 gmt",
+      "expires": "tue, 20 oct 2026 19:56:12 gmt",
       "max-age": "86400",
       "httponly": "true",
       "samesite": "lax"
@@ -56,6 +56,26 @@
     ]
   },
   {
+    "name": "admin.settings.post.invalid_negative",
+    "method": "POST",
+    "url": "/api/admin/settings",
+    "statusCode": 400,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "cleanDownloadCreditCost cannot be negative"
+  },
+  {
+    "name": "admin.settings.post.invalid_nan",
+    "method": "POST",
+    "url": "/api/admin/settings",
+    "statusCode": 400,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "cleanDownloadCreditCost must be a valid number"
+  },
+  {
     "name": "templates.list",
     "method": "GET",
     "url": "/api/templates",
@@ -78,7 +98,7 @@
   {
     "name": "templates.get",
     "method": "GET",
-    "url": "/api/templates/t_smoke-test-template_1792437797221",
+    "url": "/api/templates/t_smoke-test-template_1792439773497",
     "statusCode": 200,
     "keys": [
       "category",
@@ -99,7 +119,7 @@
   {
     "name": "admin.templates.duplicate.no_cookie",
     "method": "POST",
-    "url": "/api/admin/templates/t_smoke-test-template_1792437797221/duplicate",
+    "url": "/api/admin/templates/t_smoke-test-template_1792439773497/duplicate",
     "statusCode": 401,
     "keys": [
       "error"
@@ -109,7 +129,7 @@
   {
     "name": "admin.templates.duplicate",
     "method": "POST",
-    "url": "/api/admin/templates/t_smoke-test-template_1792437797221/duplicate",
+    "url": "/api/admin/templates/t_smoke-test-template_1792439773497/duplicate",
     "statusCode": 200,
     "keys": [
       "config",
@@ -120,7 +140,7 @@
   {
     "name": "admin.templates.delete.no_cookie",
     "method": "DELETE",
-    "url": "/api/admin/templates/t_smoke-test-temp_copy_1792437797251",
+    "url": "/api/admin/templates/t_smoke-test-temp_copy_1792439773630",
     "statusCode": 401,
     "keys": [
       "error"
@@ -130,7 +150,7 @@
   {
     "name": "admin.templates.delete",
     "method": "DELETE",
-    "url": "/api/admin/templates/t_smoke-test-temp_copy_1792437797251",
+    "url": "/api/admin/templates/t_smoke-test-temp_copy_1792439773630",
     "statusCode": 200,
     "keys": [
       "success"
@@ -179,7 +199,7 @@
       "name": "poster_user_token",
       "hasValue": "true",
       "path": "/",
-      "expires": "wed, 18 nov 2026 19:23:19 gmt",
+      "expires": "wed, 18 nov 2026 19:56:15 gmt",
       "max-age": "2592000",
       "httponly": "true",
       "samesite": "lax"
@@ -265,7 +285,7 @@
       "name": "poster_user_token",
       "hasValue": "true",
       "path": "/",
-      "expires": "wed, 18 nov 2026 19:23:21 gmt",
+      "expires": "wed, 18 nov 2026 19:56:17 gmt",
       "max-age": "2592000",
       "httponly": "true",
       "samesite": "lax"
@@ -284,7 +304,7 @@
       "name": "poster_user_token",
       "hasValue": "true",
       "path": "/",
-      "expires": "wed, 18 nov 2026 19:23:23 gmt",
+      "expires": "wed, 18 nov 2026 19:56:19 gmt",
       "max-age": "2592000",
       "httponly": "true",
       "samesite": "lax"
@@ -325,6 +345,26 @@
       "success",
       "userId"
     ]
+  },
+  {
+    "name": "admin.credits.adjust.invalid_nan",
+    "method": "POST",
+    "url": "/api/admin/credits/adjust",
+    "statusCode": 400,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "amount must be a valid number"
+  },
+  {
+    "name": "admin.credits.adjust.zero_amount",
+    "method": "POST",
+    "url": "/api/admin/credits/adjust",
+    "statusCode": 400,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Non-zero amount is required."
   },
   {
     "name": "packages.list",
@@ -388,7 +428,7 @@
   {
     "name": "admin.packages.patch.no_cookie",
     "method": "PATCH",
-    "url": "/api/admin/packages/cmvfn6vau004lrb76zducpiwu",
+    "url": "/api/admin/packages/cmvfod810006jrb76w1fjiltt",
     "statusCode": 401,
     "keys": [
       "error"
@@ -398,7 +438,7 @@
   {
     "name": "admin.packages.patch.invalid_cookie",
     "method": "PATCH",
-    "url": "/api/admin/packages/cmvfn6vau004lrb76zducpiwu",
+    "url": "/api/admin/packages/cmvfod810006jrb76w1fjiltt",
     "statusCode": 401,
     "keys": [
       "error"
@@ -408,7 +448,7 @@
   {
     "name": "admin.packages.patch.user_cookie",
     "method": "PATCH",
-    "url": "/api/admin/packages/cmvfn6vau004lrb76zducpiwu",
+    "url": "/api/admin/packages/cmvfod810006jrb76w1fjiltt",
     "statusCode": 401,
     "keys": [
       "error"
@@ -418,7 +458,7 @@
   {
     "name": "admin.packages.patch.invalid_credits",
     "method": "PATCH",
-    "url": "/api/admin/packages/cmvfn6vau004lrb76zducpiwu",
+    "url": "/api/admin/packages/cmvfod810006jrb76w1fjiltt",
     "statusCode": 400,
     "keys": [
       "error"
@@ -428,7 +468,7 @@
   {
     "name": "admin.packages.patch.negative_price",
     "method": "PATCH",
-    "url": "/api/admin/packages/cmvfn6vau004lrb76zducpiwu",
+    "url": "/api/admin/packages/cmvfod810006jrb76w1fjiltt",
     "statusCode": 400,
     "keys": [
       "error"
@@ -438,7 +478,7 @@
   {
     "name": "admin.packages.patch",
     "method": "PATCH",
-    "url": "/api/admin/packages/cmvfn6vau004lrb76zducpiwu",
+    "url": "/api/admin/packages/cmvfod810006jrb76w1fjiltt",
     "statusCode": 200,
     "keys": [
       "package",
@@ -469,7 +509,7 @@
   {
     "name": "payments.get.second_user",
     "method": "GET",
-    "url": "/api/payments/cmvfn6wgy004mrb76r1bwwd8u",
+    "url": "/api/payments/cmvfod93w006krb768ityvxjw",
     "statusCode": 404,
     "keys": [
       "error"
@@ -479,7 +519,7 @@
   {
     "name": "payments.get",
     "method": "GET",
-    "url": "/api/payments/cmvfn6wgy004mrb76r1bwwd8u",
+    "url": "/api/payments/cmvfod93w006krb768ityvxjw",
     "statusCode": 200,
     "keys": [
       "payment"
@@ -540,7 +580,7 @@
   {
     "name": "admin.packages.delete.no_cookie",
     "method": "DELETE",
-    "url": "/api/admin/packages/cmvfn6vau004lrb76zducpiwu",
+    "url": "/api/admin/packages/cmvfod810006jrb76w1fjiltt",
     "statusCode": 401,
     "keys": [
       "error"
@@ -550,7 +590,7 @@
   {
     "name": "admin.packages.delete.invalid_cookie",
     "method": "DELETE",
-    "url": "/api/admin/packages/cmvfn6vau004lrb76zducpiwu",
+    "url": "/api/admin/packages/cmvfod810006jrb76w1fjiltt",
     "statusCode": 401,
     "keys": [
       "error"
@@ -560,7 +600,7 @@
   {
     "name": "admin.packages.delete.user_cookie",
     "method": "DELETE",
-    "url": "/api/admin/packages/cmvfn6vau004lrb76zducpiwu",
+    "url": "/api/admin/packages/cmvfod810006jrb76w1fjiltt",
     "statusCode": 401,
     "keys": [
       "error"
@@ -570,7 +610,7 @@
   {
     "name": "admin.packages.delete",
     "method": "DELETE",
-    "url": "/api/admin/packages/cmvfn6vau004lrb76zducpiwu",
+    "url": "/api/admin/packages/cmvfod810006jrb76w1fjiltt",
     "statusCode": 200,
     "keys": [
       "deactivated",
@@ -597,14 +637,51 @@
     ]
   },
   {
+    "name": "posters.files.admin_pose_logged_out",
+    "method": "GET",
+    "url": "/api/posters/files/poses/preview_1792439794860_c8deefa1-51db-4af2-95f9-431be8748025.png",
+    "statusCode": 200,
+    "keys": []
+  },
+  {
+    "name": "posters.files.encoded_traversal",
+    "method": "GET",
+    "url": "/api/posters/files/..%2fpackage.json",
+    "statusCode": 404,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Invalid path"
+  },
+  {
+    "name": "poses.files.nonexistent",
+    "method": "GET",
+    "url": "/api/posters/files/poses/nonexistent_pose_99999.png",
+    "statusCode": 404,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "File not found"
+  },
+  {
     "name": "admin.poses.patch",
     "method": "PATCH",
-    "url": "/api/poses/cmvfn74jc004prb765xpdpr7m",
+    "url": "/api/poses/cmvfodh9s006nrb76ed5tl0wj",
     "statusCode": 200,
     "keys": [
       "pose",
       "success"
     ]
+  },
+  {
+    "name": "poses.generate.inactive_pose",
+    "method": "POST",
+    "url": "/api/poses/generate",
+    "statusCode": 400,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Selected pose is currently inactive."
   },
   {
     "name": "poses.generate",
@@ -622,7 +699,7 @@
   {
     "name": "poses.jobStatus",
     "method": "GET",
-    "url": "/api/poses/jobs/cmvfn77he004rrb76wuqdsrlj",
+    "url": "/api/poses/jobs/cmvfodl7b006prb769d2xlbm0",
     "statusCode": 200,
     "keys": [
       "createdAt",
@@ -638,7 +715,7 @@
   {
     "name": "poses.jobStatus.second_user",
     "method": "GET",
-    "url": "/api/poses/jobs/cmvfn77he004rrb76wuqdsrlj",
+    "url": "/api/poses/jobs/cmvfodl7b006prb769d2xlbm0",
     "statusCode": 404,
     "keys": [
       "error"
@@ -648,7 +725,7 @@
   {
     "name": "poses.files.output_second_user",
     "method": "GET",
-    "url": "/api/posters/files/poses/outputs/cmvfn77he004rrb76wuqdsrlj.png",
+    "url": "/api/posters/files/poses/outputs/cmvfodl7b006prb769d2xlbm0.png",
     "statusCode": 404,
     "keys": [
       "error"
@@ -658,7 +735,7 @@
   {
     "name": "admin.poses.delete",
     "method": "DELETE",
-    "url": "/api/poses/cmvfn74jc004prb765xpdpr7m",
+    "url": "/api/poses/cmvfodh9s006nrb76ed5tl0wj",
     "statusCode": 200,
     "keys": [
       "success"
@@ -675,6 +752,16 @@
     ]
   },
   {
+    "name": "posters.create.nonexistent_template",
+    "method": "POST",
+    "url": "/api/posters",
+    "statusCode": 404,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Template not found"
+  },
+  {
     "name": "posters.list",
     "method": "GET",
     "url": "/api/posters",
@@ -686,7 +773,7 @@
   {
     "name": "posters.get",
     "method": "GET",
-    "url": "/api/posters/cmvfn79wb004srb76cwmfapcn",
+    "url": "/api/posters/cmvfodnoy006qrb76ofse9qv6",
     "statusCode": 200,
     "keys": [
       "poster"
@@ -695,7 +782,7 @@
   {
     "name": "posters.get.second_user",
     "method": "GET",
-    "url": "/api/posters/cmvfn79wb004srb76cwmfapcn",
+    "url": "/api/posters/cmvfodnoy006qrb76ofse9qv6",
     "statusCode": 404,
     "keys": [
       "error"
@@ -705,7 +792,7 @@
   {
     "name": "posters.files.second_user",
     "method": "GET",
-    "url": "/api/posters/files/cmvfn79wb004srb76cwmfapcn/preview.png",
+    "url": "/api/posters/files/cmvfodnoy006qrb76ofse9qv6/preview.png",
     "statusCode": 404,
     "keys": [
       "error"
@@ -715,7 +802,7 @@
   {
     "name": "posters.duplicate",
     "method": "POST",
-    "url": "/api/posters/cmvfn79wb004srb76cwmfapcn/duplicate",
+    "url": "/api/posters/cmvfodnoy006qrb76ofse9qv6/duplicate",
     "statusCode": 200,
     "keys": [
       "poster",
@@ -725,7 +812,7 @@
   {
     "name": "posters.deleteDuplicate",
     "method": "DELETE",
-    "url": "/api/posters/cmvfn7cx0004urb76ppoqgt19",
+    "url": "/api/posters/cmvfodqme006srb76gkmgqypa",
     "statusCode": 200,
     "keys": [
       "success"
@@ -734,7 +821,7 @@
   {
     "name": "posters.deleteOriginal",
     "method": "DELETE",
-    "url": "/api/posters/cmvfn79wb004srb76cwmfapcn",
+    "url": "/api/posters/cmvfodnoy006qrb76ofse9qv6",
     "statusCode": 200,
     "keys": [
       "success"
@@ -813,7 +900,7 @@
   {
     "name": "reports.adminResolve.no_cookie",
     "method": "PATCH",
-    "url": "/api/reports/cmvfn7fij004vrb76barhft9i",
+    "url": "/api/reports/cmvfodsvp006trb76y258xex5",
     "statusCode": 401,
     "keys": [
       "error"
@@ -823,7 +910,7 @@
   {
     "name": "reports.adminResolve.invalid_cookie",
     "method": "PATCH",
-    "url": "/api/reports/cmvfn7fij004vrb76barhft9i",
+    "url": "/api/reports/cmvfodsvp006trb76y258xex5",
     "statusCode": 401,
     "keys": [
       "error"
@@ -833,7 +920,7 @@
   {
     "name": "reports.adminResolve.user_cookie",
     "method": "PATCH",
-    "url": "/api/reports/cmvfn7fij004vrb76barhft9i",
+    "url": "/api/reports/cmvfodsvp006trb76y258xex5",
     "statusCode": 401,
     "keys": [
       "error"
@@ -853,7 +940,7 @@
   {
     "name": "reports.adminResolve",
     "method": "PATCH",
-    "url": "/api/reports/cmvfn7fij004vrb76barhft9i",
+    "url": "/api/reports/cmvfodsvp006trb76y258xex5",
     "statusCode": 200,
     "keys": [
       "report",
@@ -919,6 +1006,16 @@
       "item",
       "success"
     ]
+  },
+  {
+    "name": "posters.create.blocked_word",
+    "method": "POST",
+    "url": "/api/posters",
+    "statusCode": 400,
+    "keys": [
+      "error"
+    ],
+    "errorMessage": "Text contains blocked word: \"smoke_bad_word\""
   },
   {
     "name": "safety.blocklist.delete.no_cookie",
@@ -1082,7 +1179,7 @@
   {
     "name": "admin.templates.cleanup",
     "method": "DELETE",
-    "url": "/api/admin/templates/t_smoke-test-template_1792437797221",
+    "url": "/api/admin/templates/t_smoke-test-template_1792439773497",
     "statusCode": 200,
     "keys": [
       "success"

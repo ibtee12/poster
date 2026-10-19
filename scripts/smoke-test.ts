@@ -153,6 +153,26 @@ async function runSmokeTest(): Promise<EndpointResult[]> {
     record("admin.settings.post", "POST", "/api/admin/settings", res.status, data);
   }
 
+  // 3b. Admin Settings Invalid Negative & NaN
+  {
+    const res = await fetch(`${BASE_URL}/api/admin/settings`, {
+      method: "POST",
+      headers: { ...adminHeaders, "Content-Type": "application/json" },
+      body: JSON.stringify({ cleanDownloadCreditCost: -5 }),
+    });
+    const data = await res.json().catch(() => ({}));
+    record("admin.settings.post.invalid_negative", "POST", "/api/admin/settings", res.status, data);
+  }
+  {
+    const res = await fetch(`${BASE_URL}/api/admin/settings`, {
+      method: "POST",
+      headers: { ...adminHeaders, "Content-Type": "application/json" },
+      body: JSON.stringify({ cleanDownloadCreditCost: "not_a_number" }),
+    });
+    const data = await res.json().catch(() => ({}));
+    record("admin.settings.post.invalid_nan", "POST", "/api/admin/settings", res.status, data);
+  }
+
   // 4. Templates List
   {
     const res = await fetch(`${BASE_URL}/api/templates`);
@@ -429,6 +449,26 @@ async function runSmokeTest(): Promise<EndpointResult[]> {
     record("admin.credits.adjust", "POST", "/api/admin/credits/adjust", res.status, data);
   }
 
+  // 13b. Admin Credits Adjust Invalid NaN & Zero Amount
+  {
+    const res = await fetch(`${BASE_URL}/api/admin/credits/adjust`, {
+      method: "POST",
+      headers: { ...adminHeaders, "Content-Type": "application/json" },
+      body: JSON.stringify({ email: testEmail, amount: "abc" }),
+    });
+    const data = await res.json().catch(() => ({}));
+    record("admin.credits.adjust.invalid_nan", "POST", "/api/admin/credits/adjust", res.status, data);
+  }
+  {
+    const res = await fetch(`${BASE_URL}/api/admin/credits/adjust`, {
+      method: "POST",
+      headers: { ...adminHeaders, "Content-Type": "application/json" },
+      body: JSON.stringify({ email: testEmail, amount: 0 }),
+    });
+    const data = await res.json().catch(() => ({}));
+    record("admin.credits.adjust.zero_amount", "POST", "/api/admin/credits/adjust", res.status, data);
+  }
+
   // 14. Packages: List, Admin Create, Admin Patch
   {
     const res = await fetch(`${BASE_URL}/api/packages`);
@@ -677,19 +717,42 @@ async function runSmokeTest(): Promise<EndpointResult[]> {
     record("poses.list", "GET", "/api/poses", res.status, data);
   }
   {
+    const form = new FormData();
+    form.append("name", "Smoke Test Pose");
+    form.append("category", "General");
+    const samplePng = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "base64");
+    form.append("preview", new Blob([samplePng], { type: "image/png" }), "preview.png");
+    form.append("reference", new Blob([samplePng], { type: "image/png" }), "ref.png");
+
     const res = await fetch(`${BASE_URL}/api/poses`, {
       method: "POST",
-      headers: { ...adminHeaders, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: "Smoke Test Pose",
-        gender: "unisex",
-        previewImage: "/sample-photo.jpg",
-        prompt: "A handsome model posing cleanly",
-      }),
+      headers: adminHeaders,
+      body: form,
     });
     const data = await res.json().catch(() => ({}));
     createdPoseId = data.pose?.id || "";
     record("admin.poses.create", "POST", "/api/poses", res.status, data);
+
+    // 16a. Logged-out access to admin pose preview image (must succeed with 200)
+    if (data.pose?.previewImagePath) {
+      const rel = data.pose.previewImagePath.replace(/^\/api\/posters\/files\//, "");
+      const previewRes = await fetch(`${BASE_URL}/api/posters/files/${rel}`);
+      record("posters.files.admin_pose_logged_out", "GET", `/api/posters/files/${rel}`, previewRes.status, {});
+    }
+
+    // 16b. Encoded traversal on /api/posters/files (..%2f) must return 404
+    {
+      const res = await fetch(`${BASE_URL}/api/posters/files/..%2fpackage.json`);
+      const data = await res.json().catch(() => ({}));
+      record("posters.files.encoded_traversal", "GET", "/api/posters/files/..%2fpackage.json", res.status, data);
+    }
+
+    // 16c. Nonexistent poses file must return 404
+    {
+      const res = await fetch(`${BASE_URL}/api/posters/files/poses/nonexistent_pose_99999.png`);
+      const data = await res.json().catch(() => ({}));
+      record("poses.files.nonexistent", "GET", "/api/posters/files/poses/nonexistent_pose_99999.png", res.status, data);
+    }
   }
   if (createdPoseId) {
     const res = await fetch(`${BASE_URL}/api/poses/${createdPoseId}`, {
@@ -699,6 +762,33 @@ async function runSmokeTest(): Promise<EndpointResult[]> {
     });
     const data = await res.json().catch(() => ({}));
     record("admin.poses.patch", "PATCH", `/api/poses/${createdPoseId}`, res.status, data);
+
+    // 16d. Inactive pose rejection on generate
+    await fetch(`${BASE_URL}/api/poses/${createdPoseId}`, {
+      method: "PATCH",
+      headers: { ...adminHeaders, "Content-Type": "application/json" },
+      body: JSON.stringify({ active: false }),
+    });
+
+    const inactRes = await fetch(`${BASE_URL}/api/poses/generate`, {
+      method: "POST",
+      headers: { ...userHeaders, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        poseId: createdPoseId,
+        photoBase64: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+        prompt: "Smoke test pose prompt",
+        mockProvider: true,
+      }),
+    });
+    const inactData = await inactRes.json().catch(() => ({}));
+    record("poses.generate.inactive_pose", "POST", "/api/poses/generate", inactRes.status, inactData);
+
+    // Restore active: true
+    await fetch(`${BASE_URL}/api/poses/${createdPoseId}`, {
+      method: "PATCH",
+      headers: { ...adminHeaders, "Content-Type": "application/json" },
+      body: JSON.stringify({ active: true }),
+    });
   }
   if (createdPoseId) {
     const res = await fetch(`${BASE_URL}/api/poses/generate`, {
@@ -754,6 +844,20 @@ async function runSmokeTest(): Promise<EndpointResult[]> {
     const data = await res.json().catch(() => ({}));
     createdPosterId = data.poster?.id || "";
     record("posters.create", "POST", "/api/posters", res.status, data);
+  }
+
+  // 17b. Posters Create with Nonexistent Template
+  {
+    const res = await fetch(`${BASE_URL}/api/posters`, {
+      method: "POST",
+      headers: { ...userHeaders, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        templateId: "nonexistent_template_id_9999",
+        name: "Bad Template Poster",
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    record("posters.create.nonexistent_template", "POST", "/api/posters", res.status, data);
   }
   {
     const res = await fetch(`${BASE_URL}/api/posters`, { headers: userHeaders });
@@ -969,6 +1073,20 @@ async function runSmokeTest(): Promise<EndpointResult[]> {
     });
     const data = await res.json().catch(() => ({}));
     record("safety.blocklist.post", "POST", "/api/safety/blocklist", res.status, data);
+  }
+
+  // 19c-2. Posters Create with Blocked Word (must return 400)
+  {
+    const res = await fetch(`${BASE_URL}/api/posters`, {
+      method: "POST",
+      headers: { ...userHeaders, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        templateId: createdTemplateId || "template_sample",
+        textValues: { title: "Contains smoke_bad_word" },
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    record("posters.create.blocked_word", "POST", "/api/posters", res.status, data);
   }
 
   // 19d. Safety DELETE Auth & Input Failures
