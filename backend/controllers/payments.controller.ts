@@ -107,6 +107,7 @@ export async function verifyPaymentController(req: Request) {
 
     const payment = await prisma.payment.findUnique({
       where: { id: paymentId },
+      include: { package: true },
     });
 
     if (!payment) {
@@ -146,9 +147,26 @@ export async function verifyPaymentController(req: Request) {
       );
     }
 
+    // Verify amount and currency reported by provider match payment.amount and package currency
+    const amountPaid = verifyResult.amountPaid ?? payment.amount;
+    const currencyPaid = (verifyResult.currency || payment.currency || "BDT").toUpperCase();
+    const expectedCurrency = (payment.package.currency || payment.currency || "BDT").toUpperCase();
+
+    if (Math.abs(amountPaid - payment.amount) > 0.01 || currencyPaid !== expectedCurrency) {
+      await prisma.payment.update({
+        where: { id: paymentId },
+        data: { status: "failed" },
+      });
+      return NextResponse.json(
+        { success: false, error: "Payment verification failed: amount or currency mismatch" },
+        { status: 400 }
+      );
+    }
+
     const creditResult = await completePaymentAndCreditWallet(
       paymentId,
-      verifyResult.providerRef
+      verifyResult.providerRef,
+      { allowFromFailed: true }
     );
 
     if (!creditResult.success) {
@@ -168,7 +186,7 @@ export async function verifyPaymentController(req: Request) {
     });
   } catch (err: any) {
     console.error("Verification error:", err);
-    return NextResponse.json({ error: err.message || "Verification error" }, { status: 500 });
+    return NextResponse.json({ error: "Verification error occurred" }, { status: 500 });
   }
 }
 
@@ -201,9 +219,32 @@ export async function webhookController(req: Request) {
       return NextResponse.json({ error: "Payment verification failed" }, { status: 400 });
     }
 
+    // Verify amount and currency reported by provider match payment.amount and package currency
+    const payment = await prisma.payment.findUnique({
+      where: { id: result.paymentId },
+      include: { package: true },
+    });
+
+    if (!payment) {
+      return NextResponse.json({ error: "Payment not found" }, { status: 404 });
+    }
+
+    if (result.amountPaid !== undefined) {
+      const currencyPaid = (result.currency || payment.currency || "BDT").toUpperCase();
+      const expectedCurrency = (payment.package.currency || payment.currency || "BDT").toUpperCase();
+
+      if (Math.abs(result.amountPaid - payment.amount) > 0.01 || currencyPaid !== expectedCurrency) {
+        return NextResponse.json(
+          { error: "Payment verification failed: amount or currency mismatch" },
+          { status: 400 }
+        );
+      }
+    }
+
     const creditResult = await completePaymentAndCreditWallet(
       result.paymentId,
-      result.providerRef
+      result.providerRef,
+      { allowFromFailed: true }
     );
 
     return NextResponse.json({

@@ -18,6 +18,7 @@ export interface PaymentResult {
 export interface VerifyResult {
   success: boolean;
   amountPaid?: number;
+  currency?: string;
   providerRef?: string;
   error?: string;
 }
@@ -26,6 +27,8 @@ export interface WebhookResult {
   handled: boolean;
   paymentId?: string;
   success?: boolean;
+  amountPaid?: number;
+  currency?: string;
   providerRef?: string;
 }
 
@@ -199,6 +202,7 @@ export class BkashPaymentProvider implements PaymentProvider {
       return {
         success: true,
         amountPaid: payment.amount,
+        currency: payment.currency || "BDT",
         providerRef: `BKASH_SIM_${Date.now()}`,
       };
     }
@@ -222,6 +226,7 @@ export class BkashPaymentProvider implements PaymentProvider {
         return {
           success: true,
           amountPaid: parseFloat(execData.amount),
+          currency: execData.currency || "BDT",
           providerRef: execData.trxID,
         };
       } else {
@@ -243,6 +248,7 @@ export class BkashPaymentProvider implements PaymentProvider {
       where: {
         OR: [{ id: paymentID }, { providerRef: paymentID }],
       },
+      include: { package: true },
     });
 
     if (!payment) return { handled: false };
@@ -254,6 +260,8 @@ export class BkashPaymentProvider implements PaymentProvider {
         handled: true,
         paymentId: payment.id,
         success: verifyResult.success,
+        amountPaid: verifyResult.amountPaid,
+        currency: verifyResult.currency,
         providerRef: verifyResult.providerRef,
       };
     }
@@ -267,6 +275,8 @@ export class BkashPaymentProvider implements PaymentProvider {
       handled: true,
       paymentId: payment.id,
       success: isMockVerified,
+      amountPaid: isMockVerified ? payment.amount : undefined,
+      currency: isMockVerified ? (payment.package.currency || payment.currency) : undefined,
       providerRef: isMockVerified ? payload?.trxID : undefined,
     };
   }
@@ -312,10 +322,16 @@ export function getPaymentProvider(providerName?: string): PaymentProvider {
  * Completes a payment and credits the user's wallet.
  * ATOMIC & IDEMPOTENT: Guarantees that even with simultaneous concurrent calls,
  * credits will NEVER be added twice.
+ *
+ * Enforces valid state transitions:
+ * - Transition to "paid" is only allowed from "pending" (or "failed" only when allowFromFailed is true)
+ * - "refunded" or "cancelled" payments must NEVER be credited
+ * - Returns a generic error on failure instead of leaking internal error messages
  */
 export async function completePaymentAndCreditWallet(
   paymentId: string,
-  providerRef?: string
+  providerRef?: string,
+  options?: { allowFromFailed?: boolean }
 ): Promise<{ success: boolean; alreadyProcessed?: boolean; error?: string }> {
   try {
     return await prisma.$transaction(async (tx) => {
@@ -328,11 +344,37 @@ export async function completePaymentAndCreditWallet(
         return { success: false, error: "Payment not found" };
       }
 
-      // ATOMIC UPDATE: Only update if not already paid
+      // Terminal cancelled or refunded states can NEVER be credited
+      if (payment.status === "refunded" || payment.status === "cancelled") {
+        return {
+          success: false,
+          error: "Payment has been cancelled or refunded and cannot be credited.",
+        };
+      }
+
+      if (payment.status === "paid") {
+        return {
+          success: true,
+          alreadyProcessed: true,
+        };
+      }
+
+      const allowedStatuses = options?.allowFromFailed
+        ? ["pending", "failed"]
+        : ["pending"];
+
+      if (!allowedStatuses.includes(payment.status)) {
+        return {
+          success: false,
+          error: "Payment cannot be transitioned to paid from its current state.",
+        };
+      }
+
+      // ATOMIC UPDATE: Only update if status is in allowedStatuses
       const updateResult = await tx.payment.updateMany({
         where: {
           id: paymentId,
-          status: { not: "paid" },
+          status: { in: allowedStatuses },
         },
         data: {
           status: "paid",
@@ -381,6 +423,6 @@ export async function completePaymentAndCreditWallet(
     });
   } catch (err: any) {
     console.error("Failed to credit payment:", err);
-    return { success: false, error: err.message || "Failed to credit payment" };
+    return { success: false, error: "Failed to process payment completion" };
   }
 }
