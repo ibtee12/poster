@@ -1,305 +1,65 @@
-import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/backend/services/auth.service";
 import { isCallerAdmin } from "@/backend/middleware/auth";
-import { prisma } from "@/backend/db/prisma";
-import { posterStorage } from "@/backend/services/posterStorage.service";
-import { recordAnalyticsEvent } from "@/backend/services/analytics.service";
+import * as postersService from "@/backend/services/posters.service";
+import type {
+  CreatePosterInput,
+  PosterIdParamsInput,
+  PosterFilePathParamsInput,
+} from "@/backend/schemas/posters.schema";
 
-export async function getUserPostersController(req: Request) {
-  try {
-    const user = await getCurrentUser(req);
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized. Please log in." }, { status: 401 });
-    }
-
-    const posters = await prisma.poster.findMany({
-      where: { userId: user.id },
-      orderBy: { createdAt: "desc" },
-    });
-
-    return NextResponse.json({ posters });
-  } catch (err: any) {
-    console.error("Fetch posters error:", err);
-    return NextResponse.json({ error: "Failed to fetch posters" }, { status: 500 });
-  }
+export async function getUserPostersController(
+  _req: Request,
+  ctx: { user: { id: string } }
+) {
+  return await postersService.getUserPosters(ctx.user.id);
 }
 
-export async function createPosterController(req: Request) {
-  try {
-    const user = await getCurrentUser(req);
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized. Please log in." }, { status: 401 });
-    }
-
-    const body = await req.json();
-    const {
-      templateId,
-      layoutId,
-      variantId,
-      textValues = {},
-      adjustments = {},
-      previewImageBase64,
-      finalImageBase64,
-      title,
-      sessionId,
-    } = body;
-
-    if (!templateId) {
-      return NextResponse.json({ error: "templateId is required" }, { status: 400 });
-    }
-
-    const poster = await prisma.poster.create({
-      data: {
-        userId: user.id,
-        templateId,
-        layoutId: layoutId || null,
-        variantId: variantId || null,
-        textValues: textValues || {},
-        adjustments: adjustments || {},
-        title: title || "My Custom Poster",
-        previewImagePath: "",
-      },
-    });
-
-    let previewPath = "";
-    if (previewImageBase64) {
-      const cleanB64 = previewImageBase64.replace(/^data:image\/\w+;base64,/, "");
-      const buffer = Buffer.from(cleanB64, "base64");
-      previewPath = await posterStorage.saveFile(`${poster.id}/preview.png`, buffer, "image/png");
-    }
-
-    let finalPath: string | null = null;
-    if (finalImageBase64) {
-      const cleanB64 = finalImageBase64.replace(/^data:image\/\w+;base64,/, "");
-      const buffer = Buffer.from(cleanB64, "base64");
-      finalPath = await posterStorage.saveFile(`${poster.id}/final.png`, buffer, "image/png");
-    }
-
-    const updatedPoster = await prisma.poster.update({
-      where: { id: poster.id },
-      data: {
-        previewImagePath: previewPath,
-        finalImagePath: finalPath,
-      },
-    });
-
-    await recordAnalyticsEvent({
-      sessionId: sessionId || "anon",
-      eventType: "poster_saved",
-      templateId,
-      layoutId: layoutId || undefined,
-      metadata: { posterId: poster.id },
-    });
-
-    return NextResponse.json({ success: true, poster: updatedPoster });
-  } catch (err: any) {
-    console.error("Save poster error:", err);
-    return NextResponse.json({ error: "Failed to save poster" }, { status: 500 });
-  }
+export async function createPosterController(
+  _req: Request,
+  ctx: { user: { id: string }; validated: { body: CreatePosterInput } }
+) {
+  return await postersService.createPoster(ctx.user.id, ctx.validated.body);
 }
 
 export async function getPosterByIdController(
   req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  ctx: { user?: { id: string } | null; validated: { params: PosterIdParamsInput } }
 ) {
-  try {
-    const { id } = await params;
-    const user = await getCurrentUser(req);
-    const isAdmin = await isCallerAdmin(req);
-
-    if (!user && !isAdmin) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const poster = await prisma.poster.findUnique({
-      where: { id },
-    });
-
-    if (!poster) {
-      return NextResponse.json({ error: "Poster not found" }, { status: 404 });
-    }
-
-    if (!isAdmin && poster.userId !== user?.id) {
-      return NextResponse.json({ error: "Poster not found" }, { status: 404 });
-    }
-
-    // Never return the owner's email or user id to non-admins
-    const { userId, ...safePoster } = poster;
-
-    return NextResponse.json({ poster: isAdmin ? poster : safePoster });
-  } catch (err: any) {
-    return NextResponse.json({ error: "Failed to fetch poster" }, { status: 500 });
-  }
+  const isAdmin = await isCallerAdmin(req);
+  return await postersService.getPosterById(ctx.validated.params.id, {
+    id: ctx.user?.id,
+    isAdmin,
+  });
 }
 
 export async function deletePosterController(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  _req: Request,
+  ctx: { user: { id: string }; validated: { params: PosterIdParamsInput } }
 ) {
-  try {
-    const { id } = await params;
-    const user = await getCurrentUser(req);
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const poster = await prisma.poster.findUnique({
-      where: { id },
-    });
-
-    if (!poster) {
-      return NextResponse.json({ error: "Poster not found" }, { status: 404 });
-    }
-
-    if (poster.userId !== user.id) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    await posterStorage.deleteFile(`${id}/preview.png`);
-    await posterStorage.deleteFile(`${id}/final.png`);
-
-    await prisma.poster.delete({
-      where: { id },
-    });
-
-    return NextResponse.json({ success: true });
-  } catch (err: any) {
-    console.error("Delete poster error:", err);
-    return NextResponse.json({ error: "Failed to delete poster" }, { status: 500 });
-  }
+  return await postersService.deletePoster(ctx.validated.params.id, ctx.user.id);
 }
 
 export async function duplicatePosterController(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  _req: Request,
+  ctx: { user: { id: string }; validated: { params: PosterIdParamsInput } }
 ) {
-  try {
-    const { id } = await params;
-    const user = await getCurrentUser(req);
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const original = await prisma.poster.findUnique({
-      where: { id },
-    });
-
-    if (!original) {
-      return NextResponse.json({ error: "Poster not found" }, { status: 404 });
-    }
-
-    if (original.userId !== user.id) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    const duplicate = await prisma.poster.create({
-      data: {
-        userId: user.id,
-        templateId: original.templateId,
-        layoutId: original.layoutId,
-        variantId: original.variantId,
-        textValues: original.textValues ?? {},
-        adjustments: original.adjustments ?? {},
-        cutoutPaths: original.cutoutPaths ?? {},
-        title: `${original.title || "Poster"} (Copy)`,
-        previewImagePath: "",
-      },
-    });
-
-    const origBuffer = await posterStorage.getFile(`${id}/preview.png`);
-    if (origBuffer) {
-      const newPreviewPath = await posterStorage.saveFile(
-        `${duplicate.id}/preview.png`,
-        origBuffer,
-        "image/png"
-      );
-      await prisma.poster.update({
-        where: { id: duplicate.id },
-        data: { previewImagePath: newPreviewPath },
-      });
-    }
-
-    return NextResponse.json({ success: true, poster: duplicate });
-  } catch (err: any) {
-    console.error("Duplicate poster error:", err);
-    return NextResponse.json({ error: "Failed to duplicate poster" }, { status: 500 });
-  }
+  return await postersService.duplicatePoster(ctx.validated.params.id, ctx.user.id);
 }
 
 export async function getPosterFileController(
   req: Request,
-  { params }: { params: Promise<{ path: string[] }> }
+  ctx: { params: Promise<{ path: string[] }>; user?: { id: string } | null }
 ) {
-  try {
-    const { path: pathSegments } = await params;
-    const relativePath = pathSegments.join("/");
+  const { path: pathSegments } = await ctx.params;
+  const isAdmin = await isCallerAdmin(req);
+  const { buffer, contentType } = await postersService.getPosterFile(pathSegments, {
+    id: ctx.user?.id,
+    isAdmin,
+  });
 
-    if (relativePath.includes("..") || relativePath.startsWith("/")) {
-      return NextResponse.json({ error: "Invalid path" }, { status: 400 });
-    }
-
-    const user = await getCurrentUser(req);
-    const isAdmin = await isCallerAdmin(req);
-
-    // Path authorization checks:
-    if (pathSegments.length >= 2 && pathSegments[0] === "poses") {
-      const sub = pathSegments[1];
-      if (sub === "inputs") {
-        // poses/inputs/**: only to the owner or admin
-        const filename = pathSegments.slice(2).join("/");
-        const job = await prisma.poseJob.findFirst({
-          where: { inputImagePath: { contains: filename } },
-          select: { userId: true },
-        });
-        if (!job || (!isAdmin && job.userId !== user?.id)) {
-          return NextResponse.json({ error: "File not found" }, { status: 404 });
-        }
-      } else if (sub === "outputs") {
-        // poses/outputs/**: only to the job's owner or admin
-        const filename = pathSegments.slice(2).join("/");
-        const jobId = filename.replace(/\.[^/.]+$/, "");
-        const job = await prisma.poseJob.findFirst({
-          where: {
-            OR: [{ id: jobId }, { outputImagePath: { contains: filename } }],
-          },
-          select: { userId: true },
-        });
-        if (!job || (!isAdmin && job.userId !== user?.id)) {
-          return NextResponse.json({ error: "File not found" }, { status: 404 });
-        }
-      }
-    } else if (pathSegments.length >= 1) {
-      // Poster files: [posterId, filename]
-      const posterId = pathSegments[0];
-      const poster = await prisma.poster.findUnique({
-        where: { id: posterId },
-        select: { userId: true },
-      });
-      if (!poster || (!isAdmin && poster.userId !== user?.id)) {
-        return NextResponse.json({ error: "File not found" }, { status: 404 });
-      }
-    }
-
-    const buffer = await posterStorage.getFile(relativePath);
-    if (!buffer) {
-      return NextResponse.json({ error: "File not found" }, { status: 404 });
-    }
-
-    let contentType = "image/png";
-    if (relativePath.endsWith(".jpg") || relativePath.endsWith(".jpeg")) {
-      contentType = "image/jpeg";
-    } else if (relativePath.endsWith(".webp")) {
-      contentType = "image/webp";
-    }
-
-    return new Response(new Uint8Array(buffer), {
-      headers: {
-        "Content-Type": contentType,
-        "Cache-Control": "private, no-cache, no-store, must-revalidate",
-      },
-    });
-  } catch (err: any) {
-    return NextResponse.json({ error: "Failed to read file" }, { status: 500 });
-  }
+  return new Response(new Uint8Array(buffer), {
+    headers: {
+      "Content-Type": contentType,
+      "Cache-Control": "private, no-cache, no-store, must-revalidate",
+    },
+  });
 }
-
