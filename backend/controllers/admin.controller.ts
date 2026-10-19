@@ -3,8 +3,10 @@ import { cookies } from "next/headers";
 import { prisma } from "@/backend/db/prisma";
 import {
   AUTH_COOKIE_NAME,
+  generateAdminToken,
   getExpectedToken,
   verifyAuthToken,
+  verifyAdminPassword,
 } from "@/backend/middleware/adminAuth";
 import {
   getSystemSettings,
@@ -30,13 +32,12 @@ export async function adminLoginController(request: Request) {
   try {
     const body = await request.json();
     const { password } = body;
-    const adminPassword = process.env.ADMIN_PASSWORD || "admin123";
 
-    if (!password || password !== adminPassword) {
+    if (!password || !(await verifyAdminPassword(password))) {
       return NextResponse.json({ error: "Invalid password" }, { status: 401 });
     }
 
-    const token = await getExpectedToken();
+    const token = await generateAdminToken();
     const response = NextResponse.json({ success: true });
 
     response.cookies.set(AUTH_COOKIE_NAME, token, {
@@ -44,7 +45,7 @@ export async function adminLoginController(request: Request) {
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
+      maxAge: 60 * 60 * 24, // 24 hours
     });
 
     return response;

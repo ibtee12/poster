@@ -24,6 +24,31 @@ async function extractUserToken(req: Request): Promise<string | undefined> {
   }
 }
 
+export async function isCallerAdmin(req: Request): Promise<boolean> {
+  let adminToken: string | undefined;
+  const cookieHeader = req.headers.get("cookie");
+  if (cookieHeader) {
+    const match = cookieHeader
+      .split(";")
+      .map((c) => c.trim())
+      .find((c) => c.startsWith(`${AUTH_COOKIE_NAME}=`));
+    if (match) {
+      adminToken = match.split("=")[1];
+    }
+  }
+
+  if (!adminToken) {
+    try {
+      const cookieStore = await cookies();
+      adminToken = cookieStore.get(AUTH_COOKIE_NAME)?.value;
+    } catch {
+      // Not in cookies context
+    }
+  }
+
+  return verifyAuthToken(adminToken);
+}
+
 export function withAdmin(
   handler: (req: Request, ctx?: any) => Promise<any>,
   unauthorizedMessage?: string
@@ -46,28 +71,7 @@ export function withAdmin(
   const unauthorizedMessage = maybeMsg || "Unauthorized. Admin access required.";
 
   return async (req: Request, ctx?: any) => {
-    let adminToken: string | undefined;
-    const cookieHeader = req.headers.get("cookie");
-    if (cookieHeader) {
-      const match = cookieHeader
-        .split(";")
-        .map((c) => c.trim())
-        .find((c) => c.startsWith(`${AUTH_COOKIE_NAME}=`));
-      if (match) {
-        adminToken = match.split("=")[1];
-      }
-    }
-
-    if (!adminToken) {
-      try {
-        const cookieStore = await cookies();
-        adminToken = cookieStore.get(AUTH_COOKIE_NAME)?.value;
-      } catch {
-        // Not in cookies context
-      }
-    }
-
-    const isAuthed = await verifyAuthToken(adminToken);
+    const isAuthed = await isCallerAdmin(req);
     if (!isAuthed) {
       throw new UnauthorizedError(unauthorizedMessage);
     }

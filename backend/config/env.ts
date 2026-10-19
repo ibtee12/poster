@@ -2,8 +2,13 @@ import { z } from "zod";
 
 const envSchema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
-  ADMIN_PASSWORD: z.string().default("admin123"),
+  ADMIN_PASSWORD: z.string().min(1, "ADMIN_PASSWORD is required"),
+  ADMIN_SESSION_SECRET: z.string().min(32, "ADMIN_SESSION_SECRET must be at least 32 characters"),
   SESSION_SECRET: z.string().default("poster_maker_jwt_session_secret_key_994827163"),
+  ALLOW_MANUAL_PAYMENTS: z
+    .string()
+    .optional()
+    .transform((val) => val === "true"),
   WATERMARK_ENABLED: z
     .string()
     .optional()
