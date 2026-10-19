@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/backend/services/auth.service";
+import { isCallerAdmin } from "@/backend/middleware/auth";
 import { prisma } from "@/backend/db/prisma";
 import { posterStorage } from "@/backend/services/posterStorage.service";
 import { recordAnalyticsEvent } from "@/backend/services/analytics.service";
@@ -104,17 +105,28 @@ export async function getPosterByIdController(
   try {
     const { id } = await params;
     const user = await getCurrentUser(req);
+    const isAdmin = await isCallerAdmin(req);
+
+    if (!user && !isAdmin) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     const poster = await prisma.poster.findUnique({
       where: { id },
-      include: { user: { select: { id: true, email: true } } },
     });
 
     if (!poster) {
       return NextResponse.json({ error: "Poster not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ poster });
+    if (!isAdmin && poster.userId !== user?.id) {
+      return NextResponse.json({ error: "Poster not found" }, { status: 404 });
+    }
+
+    // Never return the owner's email or user id to non-admins
+    const { userId, ...safePoster } = poster;
+
+    return NextResponse.json({ poster: isAdmin ? poster : safePoster });
   } catch (err: any) {
     return NextResponse.json({ error: "Failed to fetch poster" }, { status: 500 });
   }
@@ -215,7 +227,7 @@ export async function duplicatePosterController(
 }
 
 export async function getPosterFileController(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ path: string[] }> }
 ) {
   try {
@@ -224,6 +236,48 @@ export async function getPosterFileController(
 
     if (relativePath.includes("..") || relativePath.startsWith("/")) {
       return NextResponse.json({ error: "Invalid path" }, { status: 400 });
+    }
+
+    const user = await getCurrentUser(req);
+    const isAdmin = await isCallerAdmin(req);
+
+    // Path authorization checks:
+    if (pathSegments.length >= 2 && pathSegments[0] === "poses") {
+      const sub = pathSegments[1];
+      if (sub === "inputs") {
+        // poses/inputs/**: only to the owner or admin
+        const filename = pathSegments.slice(2).join("/");
+        const job = await prisma.poseJob.findFirst({
+          where: { inputImagePath: { contains: filename } },
+          select: { userId: true },
+        });
+        if (!job || (!isAdmin && job.userId !== user?.id)) {
+          return NextResponse.json({ error: "File not found" }, { status: 404 });
+        }
+      } else if (sub === "outputs") {
+        // poses/outputs/**: only to the job's owner or admin
+        const filename = pathSegments.slice(2).join("/");
+        const jobId = filename.replace(/\.[^/.]+$/, "");
+        const job = await prisma.poseJob.findFirst({
+          where: {
+            OR: [{ id: jobId }, { outputImagePath: { contains: filename } }],
+          },
+          select: { userId: true },
+        });
+        if (!job || (!isAdmin && job.userId !== user?.id)) {
+          return NextResponse.json({ error: "File not found" }, { status: 404 });
+        }
+      }
+    } else if (pathSegments.length >= 1) {
+      // Poster files: [posterId, filename]
+      const posterId = pathSegments[0];
+      const poster = await prisma.poster.findUnique({
+        where: { id: posterId },
+        select: { userId: true },
+      });
+      if (!poster || (!isAdmin && poster.userId !== user?.id)) {
+        return NextResponse.json({ error: "File not found" }, { status: 404 });
+      }
     }
 
     const buffer = await posterStorage.getFile(relativePath);
@@ -241,10 +295,11 @@ export async function getPosterFileController(
     return new Response(new Uint8Array(buffer), {
       headers: {
         "Content-Type": contentType,
-        "Cache-Control": "public, max-age=31536000, immutable",
+        "Cache-Control": "private, no-cache, no-store, must-revalidate",
       },
     });
   } catch (err: any) {
     return NextResponse.json({ error: "Failed to read file" }, { status: 500 });
   }
 }
+

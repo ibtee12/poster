@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { prisma } from "@/backend/db/prisma";
 import { getCurrentUser } from "@/backend/services/auth.service";
+import { isCallerAdmin } from "@/backend/middleware/auth";
 import { AUTH_COOKIE_NAME, verifyAuthToken } from "@/backend/middleware/adminAuth";
 import { rateLimiter, getClientIp, rateLimitResponse } from "@/backend/middleware/rateLimit";
 import {
@@ -148,14 +149,14 @@ export async function createPoseController(req: Request) {
       if (previewFile && previewFile.size > 0) {
         const buf = Buffer.from(await previewFile.arrayBuffer());
         const ext = previewFile.name.split(".").pop() || "png";
-        const filename = `poses/preview_${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
+        const filename = `poses/preview_${Date.now()}_${crypto.randomUUID()}.${ext}`;
         previewImagePath = await posterStorage.saveFile(filename, buf, previewFile.type);
       }
 
       if (refFile && refFile.size > 0) {
         const buf = Buffer.from(await refFile.arrayBuffer());
         const ext = refFile.name.split(".").pop() || "png";
-        const filename = `poses/ref_${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
+        const filename = `poses/ref_${Date.now()}_${crypto.randomUUID()}.${ext}`;
         referenceImagePath = await posterStorage.saveFile(filename, buf, refFile.type);
       }
     } else {
@@ -394,7 +395,7 @@ export async function generatePoseController(req: Request) {
       );
     }
 
-    const inPath = `poses/inputs/${Date.now()}_${Math.random().toString(36).substring(7)}.png`;
+    const inPath = `poses/inputs/${Date.now()}_${crypto.randomUUID()}.png`;
     const inputUrl = await posterStorage.saveFile(inPath, photoBuffer, mimeType);
 
     const job = await prisma.poseJob.create({
@@ -442,6 +443,11 @@ export async function getPoseJobStatusController(
   try {
     const { id } = await params;
     const user = await getCurrentUser(req);
+    const isAdmin = await isCallerAdmin(req);
+
+    if (!user && !isAdmin) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     const job = await prisma.poseJob.findUnique({
       where: { id },
@@ -456,8 +462,8 @@ export async function getPoseJobStatusController(
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
     }
 
-    if (user && job.userId !== user.id) {
-      // Allowed for admin or user
+    if (!isAdmin && job.userId !== user?.id) {
+      return NextResponse.json({ error: "Job not found" }, { status: 404 });
     }
 
     return NextResponse.json({
