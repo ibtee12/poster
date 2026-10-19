@@ -5,9 +5,8 @@ import { ValidationError, UnauthorizedError } from "../common/errors";
 import { getOrCreateWallet } from "./credits.service";
 import type { LoginInput, SignupInput } from "../schemas/auth.schema";
 
-// --- Admin Authentication (Re-exported from edge-compatible adminAuth) ---
-export { AUTH_COOKIE_NAME, getExpectedToken, verifyAuthToken } from "../middleware/adminAuth";
 export { USER_COOKIE_NAME };
+
 
 const SESSION_SECRET = process.env.SESSION_SECRET || "poster_maker_secret_session_key_2026";
 
@@ -113,29 +112,6 @@ export async function getUserFromToken(token?: string | null): Promise<{ id: str
   });
 
   return user;
-}
-
-/**
- * Backwards compatibility helper for unmigrated code accepting a Request or token.
- */
-export async function getCurrentUser(reqOrToken?: Request | string | null): Promise<{ id: string; email: string } | null> {
-  if (typeof reqOrToken === "string") {
-    return getUserFromToken(reqOrToken);
-  }
-  if (reqOrToken && typeof reqOrToken === "object" && "headers" in reqOrToken) {
-    const cookieHeader = reqOrToken.headers.get("cookie");
-    if (cookieHeader) {
-      const match = cookieHeader
-        .split(";")
-        .map((c) => c.trim())
-        .find((c) => c.startsWith(`${USER_COOKIE_NAME}=`));
-      if (match) {
-        return getUserFromToken(match.split("=")[1]);
-      }
-    }
-    return null;
-  }
-  return null;
 }
 
 export async function login({ email, password }: LoginInput) {

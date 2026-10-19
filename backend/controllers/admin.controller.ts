@@ -166,12 +166,6 @@ export async function approveAdminPaymentController(req: Request) {
   }
 }
 
-export {
-  createAdminPackageController,
-  updateAdminPackageController,
-  deleteAdminPackageController,
-} from "./admin.packages.controller";
-
 export async function saveAdminTemplateController(request: Request) {
   try {
     const formData = await request.formData();
