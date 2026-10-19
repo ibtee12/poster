@@ -74,12 +74,20 @@ class InMemoryRateLimiter implements RateLimiter {
 export const rateLimiter: RateLimiter = new InMemoryRateLimiter();
 
 export function getClientIp(req: Request): string {
-  const forwarded = req.headers.get("x-forwarded-for");
-  if (forwarded) {
-    return forwarded.split(",")[0].trim();
+  // Only trust X-Forwarded-For if configured behind a trusted proxy or in non-production environments
+  const trustProxy =
+    process.env.TRUST_PROXY === "true" || process.env.NODE_ENV !== "production";
+
+  if (trustProxy) {
+    const forwarded = req.headers.get("x-forwarded-for");
+    if (forwarded) {
+      return forwarded.split(",")[0].trim();
+    }
+    const realIp = req.headers.get("x-real-ip");
+    if (realIp) return realIp.trim();
   }
-  const realIp = req.headers.get("x-real-ip");
-  if (realIp) return realIp.trim();
+
+  // Without a configured proxy, do not trust client-supplied headers
   return "127.0.0.1";
 }
 

@@ -192,17 +192,43 @@ export async function getPosterFile(
   pathSegments: string[],
   requester: { id?: string; isAdmin: boolean }
 ): Promise<{ buffer: Buffer; contentType: string }> {
-  const relativePath = pathSegments.join("/");
+  // Decode each segment to protect against encoded path traversal (%2e%2e, %2f, etc.)
+  const decodedSegments: string[] = [];
+  for (const seg of pathSegments) {
+    let decoded = seg;
+    try {
+      decoded = decodeURIComponent(seg);
+    } catch {
+      throw new NotFoundError("Invalid path");
+    }
+
+    if (
+      decoded.includes("..") ||
+      decoded.includes("/") ||
+      decoded.includes("\\") ||
+      decoded.includes("\0") ||
+      decoded.includes("%2e") ||
+      decoded.includes("%2f")
+    ) {
+      throw new NotFoundError("Invalid path");
+    }
+    decodedSegments.push(decoded);
+  }
+
+  const relativePath = decodedSegments.join("/");
 
   if (relativePath.includes("..") || relativePath.startsWith("/")) {
     throw new NotFoundError("Invalid path");
   }
 
-  // Authorization checks
-  if (pathSegments.length >= 2 && pathSegments[0] === "poses") {
-    const sub = pathSegments[1];
+  // Deny by default: paths must explicitly match an authorized pattern
+  let isAuthorized = false;
+
+  if (decodedSegments.length >= 2 && decodedSegments[0] === "poses") {
+    const sub = decodedSegments[1];
     if (sub === "inputs") {
-      const filename = pathSegments.slice(2).join("/");
+      const filename = decodedSegments.slice(2).join("/");
+      if (!filename) throw new NotFoundError("File not found");
       const job = await prisma.poseJob.findFirst({
         where: { inputImagePath: { contains: filename } },
         select: { userId: true },
@@ -210,8 +236,10 @@ export async function getPosterFile(
       if (!job || (!requester.isAdmin && job.userId !== requester.id)) {
         throw new NotFoundError("File not found");
       }
+      isAuthorized = true;
     } else if (sub === "outputs") {
-      const filename = pathSegments.slice(2).join("/");
+      const filename = decodedSegments.slice(2).join("/");
+      if (!filename) throw new NotFoundError("File not found");
       const jobId = filename.replace(/\.[^/.]+$/, "");
       const job = await prisma.poseJob.findFirst({
         where: {
@@ -222,9 +250,29 @@ export async function getPosterFile(
       if (!job || (!requester.isAdmin && job.userId !== requester.id)) {
         throw new NotFoundError("File not found");
       }
+      isAuthorized = true;
+    } else {
+      // Admin preset pose files: e.g. "poses/preview_..." or "poses/ref_..."
+      // These are public reference images that must load for logged-out users,
+      // but only if they match an existing record in the database!
+      const pose = await prisma.pose.findFirst({
+        where: {
+          OR: [
+            { previewImagePath: { contains: relativePath } },
+            { referenceImagePath: { contains: relativePath } },
+            { previewImagePath: `/api/posters/files/${relativePath}` },
+            { referenceImagePath: `/api/posters/files/${relativePath}` },
+          ],
+        },
+      });
+      if (!pose) {
+        throw new NotFoundError("File not found");
+      }
+      isAuthorized = true;
     }
-  } else if (pathSegments.length >= 1) {
-    const posterId = pathSegments[0];
+  } else if (decodedSegments.length >= 2) {
+    // User poster files: e.g. "<posterId>/preview.png" or "<posterId>/final.png"
+    const posterId = decodedSegments[0];
     const poster = await prisma.poster.findUnique({
       where: { id: posterId },
       select: { userId: true },
@@ -232,6 +280,12 @@ export async function getPosterFile(
     if (!poster || (!requester.isAdmin && poster.userId !== requester.id)) {
       throw new NotFoundError("File not found");
     }
+    isAuthorized = true;
+  }
+
+  // If not explicitly authorized, deny by default
+  if (!isAuthorized) {
+    throw new NotFoundError("File not found");
   }
 
   const buffer = await posterStorage.getFile(relativePath);

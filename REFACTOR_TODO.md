@@ -47,3 +47,9 @@ This file tracks temporary bridges, compatibility re-exports, and deprecated shi
 - **Central export aggregator**:
   *Reason*: Legacy barrel export file. Review usage across project at the end to ensure direct imports from specific domain modules, then eliminate if unused.
 
+### 6. Rate Limiting Multi-Instance Scaling
+- **In-memory rate limiter (`backend/middleware/rateLimit.ts`)**:
+  - The current rate limiter uses an in-memory `Map` store (`InMemoryRateLimiter`).
+  - When deployed across multiple server instances or serverless containers, rate limiting state is not shared between processes.
+  - *Action*: Replace with a distributed shared store (e.g. Redis / Upstash Redis) when deploying to multi-instance environments.
+
