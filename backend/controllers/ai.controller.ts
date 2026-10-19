@@ -2,15 +2,28 @@ import { NextResponse } from "next/server";
 import { rateLimiter, getClientIp, rateLimitResponse } from "@/backend/middleware/rateLimit";
 import { imageModerator } from "@/backend/services/moderation.service";
 import { recordAnalyticsEvent } from "@/backend/services/analytics.service";
+import { validateImageBuffer } from "@/backend/common/images";
 
 export async function removeBgController(request: Request) {
   try {
     const ip = getClientIp(request);
 
+    // Per-IP rate limit
     const rateCheck = await rateLimiter.check(`removebg:${ip}`, 10, 60);
     if (!rateCheck.success) {
       return rateLimitResponse(
         "Too many background-removal requests. Please wait a moment before trying again."
+      );
+    }
+
+    // Daily global cap check
+    const todayKey = `removebg_global_daily:${new Date().toISOString().slice(0, 10)}`;
+    const dailyCap = parseInt(process.env.REMOVE_BG_DAILY_CAP || "500", 10);
+    const globalCapCheck = await rateLimiter.check(todayKey, dailyCap, 86400);
+    if (!globalCapCheck.success) {
+      return NextResponse.json(
+        { error: "Daily background removal limit reached. Please try again tomorrow." },
+        { status: 503 }
       );
     }
 
@@ -19,6 +32,13 @@ export async function removeBgController(request: Request) {
 
     if (!file || !(file instanceof Blob)) {
       return NextResponse.json({ error: "Missing photo file in request" }, { status: 400 });
+    }
+
+    // Size limit and magic-bytes check
+    const photoBuffer = Buffer.from(await file.arrayBuffer());
+    const val = validateImageBuffer(photoBuffer, 10 * 1024 * 1024);
+    if (!val.valid) {
+      return NextResponse.json({ error: val.error }, { status: 400 });
     }
 
     const provider = (process.env.REMOVE_BG_PROVIDER || "none").toLowerCase().trim();
@@ -113,7 +133,7 @@ export async function removeBgController(request: Request) {
     );
   } catch (err: any) {
     console.error("Server remove-bg error:", err);
-    return NextResponse.json({ error: err.message || "Server fallback processing failed" }, { status: 500 });
+    return NextResponse.json({ error: "Server fallback processing failed" }, { status: 500 });
   }
 }
 

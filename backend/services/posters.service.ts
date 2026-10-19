@@ -2,10 +2,14 @@ import { prisma } from "../db/prisma";
 import { posterStorage } from "./posterStorage.service";
 import { recordAnalyticsEvent } from "./analytics.service";
 import {
+  BadRequestError,
   NotFoundError,
   ForbiddenError,
   UnauthorizedError,
 } from "../common/errors";
+import { getTemplateById } from "./templates.service";
+import { checkTextAgainstBlocklist } from "./safety.service";
+import { validateImageBuffer } from "../common/images";
 import type { CreatePosterInput } from "../schemas/posters.schema";
 
 export async function getUserPosters(userId: string) {
@@ -17,6 +21,41 @@ export async function getUserPosters(userId: string) {
 }
 
 export async function createPoster(userId: string, input: CreatePosterInput) {
+  // 1. Template must exist
+  await getTemplateById(input.templateId);
+
+  // 2. Server-side blocklist check on textValues
+  try {
+    await checkTextAgainstBlocklist(input.textValues);
+  } catch (err: any) {
+    throw new BadRequestError(err.message || "Text values contain blocked words.");
+  }
+
+  // 3. Pre-validate image buffers before creating poster
+  let previewBuffer: Buffer | null = null;
+  let previewMime = "image/png";
+  if (input.previewImageBase64) {
+    const cleanB64 = input.previewImageBase64.replace(/^data:image\/\w+;base64,/, "");
+    previewBuffer = Buffer.from(cleanB64, "base64");
+    const val = validateImageBuffer(previewBuffer, 10 * 1024 * 1024);
+    if (!val.valid) {
+      throw new BadRequestError(`Invalid preview image: ${val.error}`);
+    }
+    previewMime = val.mimeType || "image/png";
+  }
+
+  let finalBuffer: Buffer | null = null;
+  let finalMime = "image/png";
+  if (input.finalImageBase64) {
+    const cleanB64 = input.finalImageBase64.replace(/^data:image\/\w+;base64,/, "");
+    finalBuffer = Buffer.from(cleanB64, "base64");
+    const val = validateImageBuffer(finalBuffer, 10 * 1024 * 1024);
+    if (!val.valid) {
+      throw new BadRequestError(`Invalid final image: ${val.error}`);
+    }
+    finalMime = val.mimeType || "image/png";
+  }
+
   const poster = await prisma.poster.create({
     data: {
       userId,
@@ -31,17 +70,13 @@ export async function createPoster(userId: string, input: CreatePosterInput) {
   });
 
   let previewPath = "";
-  if (input.previewImageBase64) {
-    const cleanB64 = input.previewImageBase64.replace(/^data:image\/\w+;base64,/, "");
-    const buffer = Buffer.from(cleanB64, "base64");
-    previewPath = await posterStorage.saveFile(`${poster.id}/preview.png`, buffer, "image/png");
+  if (previewBuffer) {
+    previewPath = await posterStorage.saveFile(`${poster.id}/preview.png`, previewBuffer, previewMime);
   }
 
   let finalPath: string | null = null;
-  if (input.finalImageBase64) {
-    const cleanB64 = input.finalImageBase64.replace(/^data:image\/\w+;base64,/, "");
-    const buffer = Buffer.from(cleanB64, "base64");
-    finalPath = await posterStorage.saveFile(`${poster.id}/final.png`, buffer, "image/png");
+  if (finalBuffer) {
+    finalPath = await posterStorage.saveFile(`${poster.id}/final.png`, finalBuffer, finalMime);
   }
 
   const updatedPoster = await prisma.poster.update({

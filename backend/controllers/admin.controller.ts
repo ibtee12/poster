@@ -24,6 +24,10 @@ import {
   isValidImageFilename,
   TemplateConfig,
 } from "@/backend/services/templates.service";
+import {
+  updateAdminSettingsSchema,
+  adjustAdminCreditsSchema,
+} from "@/backend/schemas/settings.schema";
 
 const ALLOWED_MIME_TYPES = ["image/png", "image/jpeg", "image/webp"];
 const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
@@ -80,30 +84,20 @@ export async function updateAdminSettingsController(req: Request) {
       return NextResponse.json({ error: "Unauthorized. Admin access required." }, { status: 401 });
     }
 
-    const body = await req.json();
-    const updates: any = {};
-
-    if (body.cleanDownloadCreditCost !== undefined) {
-      updates.cleanDownloadCreditCost = Math.max(0, parseInt(body.cleanDownloadCreditCost, 10));
-    }
-    if (body.poseGenerationCreditCost !== undefined) {
-      updates.poseGenerationCreditCost = Math.max(0, parseInt(body.poseGenerationCreditCost, 10));
-    }
-    if (body.freeSignupCredits !== undefined) {
-      updates.freeSignupCredits = Math.max(0, parseInt(body.freeSignupCredits, 10));
-    }
-    if (body.dailySpendingCapPerUser !== undefined) {
-      updates.dailySpendingCapPerUser = Math.max(1, parseInt(body.dailySpendingCapPerUser, 10));
-    }
-    if (body.aiKillSwitch !== undefined) {
-      updates.aiKillSwitch = Boolean(body.aiKillSwitch);
+    const json = await req.json();
+    const parseResult = updateAdminSettingsSchema.safeParse(json);
+    if (!parseResult.success) {
+      return NextResponse.json(
+        { error: parseResult.error.issues[0]?.message || "Invalid settings input" },
+        { status: 400 }
+      );
     }
 
-    const updated = await updateSystemSettings(updates);
+    const updated = await updateSystemSettings(parseResult.data);
 
     return NextResponse.json({ success: true, settings: updated });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Failed to update settings" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to update settings" }, { status: 500 });
   }
 }
 
@@ -342,11 +336,15 @@ export async function adjustAdminCreditsController(req: Request) {
     }
 
     const body = await req.json();
-    const { userId, email, amount, reason } = body;
-
-    if (!amount || amount === 0) {
-      return NextResponse.json({ error: "Non-zero amount is required." }, { status: 400 });
+    const parseResult = adjustAdminCreditsSchema.safeParse(body);
+    if (!parseResult.success) {
+      return NextResponse.json(
+        { error: parseResult.error.issues[0]?.message || "Invalid credit adjustment parameters" },
+        { status: 400 }
+      );
     }
+
+    const { userId, email, amount: numAmount, reason } = parseResult.data;
 
     let targetUser = null;
     if (userId) {
@@ -359,7 +357,6 @@ export async function adjustAdminCreditsController(req: Request) {
       return NextResponse.json({ error: "User not found." }, { status: 404 });
     }
 
-    const numAmount = parseInt(amount, 10);
     let result;
 
     if (numAmount > 0) {
@@ -393,6 +390,6 @@ export async function adjustAdminCreditsController(req: Request) {
       message: `Successfully adjusted credits by ${numAmount > 0 ? "+" : ""}${numAmount}`,
     });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Adjustment failed" }, { status: 500 });
+    return NextResponse.json({ error: "Adjustment failed" }, { status: 500 });
   }
 }

@@ -35,8 +35,8 @@ export function handle(fn: RouteHandler) {
       }
 
       console.error("Unhandled error in route handler:", err);
-      const message = err?.message || "Internal server error";
       const status = typeof err?.statusCode === "number" ? err.statusCode : 500;
+      const message = status < 500 ? (err?.message || "Error") : "Internal server error";
       return NextResponse.json({ error: message }, { status });
     }
   };

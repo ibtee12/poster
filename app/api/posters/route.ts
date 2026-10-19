@@ -1,6 +1,7 @@
 import { handle } from "@/backend/middleware/handle";
 import { withUser } from "@/backend/middleware/auth";
 import { withValidation } from "@/backend/middleware/validate";
+import { withRateLimit } from "@/backend/middleware/rateLimit";
 import { createPosterSchema } from "@/backend/schemas/posters.schema";
 import {
   getUserPostersController,
@@ -9,5 +10,7 @@ import {
 
 export const GET = handle(withUser(getUserPostersController));
 export const POST = handle(
-  withUser(withValidation({ body: createPosterSchema }, createPosterController))
+  withRateLimit("posters_create", 30, 60)(
+    withUser(withValidation({ body: createPosterSchema }, createPosterController))
+  )
 );
