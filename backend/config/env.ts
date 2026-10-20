@@ -20,6 +20,7 @@ const envSchema = z.object({
   REMBG_URL: z.string().optional(),
   REPLICATE_API_TOKEN: z.string().optional(),
   REPLICATE_MODEL: z.string().optional(),
+  GEMINI_API_KEY: z.string().optional(),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   APP_URL: z.string().optional(),
 });

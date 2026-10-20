@@ -15,6 +15,7 @@ import {
   getDefaultSlotStyle,
 } from "@/lib/templates";
 import { TextSlotStylePanel } from "@/app/components/TextSlotStylePanel";
+import { SloganSuggester } from "@/app/components/SloganSuggester";
 import { renderPoster } from "@/lib/renderPoster";
 import { checkPhoto, PhotoCheckResult, loadImageElement } from "@/lib/photoChecks";
 import { detectFacesInImage, computeFacePlacement, NormalizedFaceBox } from "@/lib/faceDetect";
@@ -2115,6 +2116,26 @@ function MakePosterContent({ templateId }: { templateId: string }) {
                     })}
                   </span>
                 </div>
+
+                {/* AI Slogan Suggestions: You can also pick */}
+                <SloganSuggester
+                  currentText={currentTextVal}
+                  maxChars={currentSlot.maxChars || 50}
+                  category={template?.category}
+                  lang={lang}
+                  onSelect={(chosenText) => {
+                    setTexts((prev) => ({
+                      ...prev,
+                      [currentSlot.id]: chosenText,
+                    }));
+                    const matched = checkBlocklist(chosenText);
+                    if (matched) {
+                      setBlocklistError(t("blocklist_warn", { word: matched }));
+                    } else {
+                      setBlocklistError(null);
+                    }
+                  }}
+                />
 
                 {/* Text Slot Styling Panel */}
                 {currentSlot.allowStyling !== false && (

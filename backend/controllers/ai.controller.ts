@@ -3,6 +3,8 @@ import { rateLimiter, getClientIp, rateLimitResponse } from "@/backend/middlewar
 import { imageModerator } from "@/backend/services/moderation.service";
 import { recordAnalyticsEvent } from "@/backend/services/analytics.service";
 import { validateImageBuffer } from "@/backend/common/images";
+import { getBanglaSloganSuggestions } from "@/backend/services/slogan.service";
+import type { SuggestSlogansInput } from "@/backend/schemas/ai.schema";
 
 export async function removeBgController(request: Request) {
   try {
@@ -195,3 +197,20 @@ export async function moderateImageController(req: Request) {
     return NextResponse.json({ error: "Failed to process image moderation" }, { status: 500 });
   }
 }
+
+export async function suggestSlogansController(
+  req: Request,
+  ctx?: { validated?: { body?: SuggestSlogansInput } }
+) {
+  const body = ctx?.validated?.body || (await req.json());
+  const { text, maxChars, category } = body;
+
+  const suggestions = await getBanglaSloganSuggestions({
+    text,
+    maxChars,
+    category,
+  });
+
+  return NextResponse.json({ suggestions });
+}
+

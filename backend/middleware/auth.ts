@@ -4,6 +4,17 @@ import { verifyAuthToken } from "@/backend/middleware/adminAuth";
 import { getUserFromToken } from "@/backend/services/auth.service";
 import { UnauthorizedError } from "@/backend/common/errors";
 
+export interface AuthUser {
+  id: string;
+  email: string;
+}
+
+export interface UserContext {
+  user?: AuthUser | null;
+  isAdmin?: boolean;
+  [key: string]: any;
+}
+
 async function extractUserToken(req: Request): Promise<string | undefined> {
   const cookieHeader = req.headers.get("cookie");
   if (cookieHeader) {
@@ -81,6 +92,13 @@ export function withAdmin(
 }
 
 export function withUser(
+  handler: (req: Request, ctx?: any) => Promise<any>,
+  unauthorizedMessage?: string
+): (req: Request, ctx?: any) => Promise<any>;
+export function withUser(
+  unauthorizedMessage: string
+): (handler: (req: Request, ctx?: any) => Promise<any>) => (req: Request, ctx?: any) => Promise<any>;
+export function withUser(
   handlerOrMsg: ((req: Request, ctx?: any) => Promise<any>) | string,
   maybeMsg?: string
 ) {
@@ -105,6 +123,13 @@ export function withUser(
   };
 }
 
+export function withUserOrAdmin(
+  handler: (req: Request, ctx?: any) => Promise<any>,
+  unauthorizedMessage?: string
+): (req: Request, ctx?: any) => Promise<any>;
+export function withUserOrAdmin(
+  unauthorizedMessage: string
+): (handler: (req: Request, ctx?: any) => Promise<any>) => (req: Request, ctx?: any) => Promise<any>;
 export function withUserOrAdmin(
   handlerOrMsg: ((req: Request, ctx?: any) => Promise<any>) | string,
   maybeMsg?: string
@@ -131,11 +156,14 @@ export function withUserOrAdmin(
   };
 }
 
-export function withOptionalUser(handler: (req: Request, ctx?: any) => Promise<any>) {
+export function withOptionalUser(
+  handler: (req: Request, ctx?: any) => Promise<any>
+): (req: Request, ctx?: any) => Promise<any> {
   return async (req: Request, ctx?: any) => {
     const token = await extractUserToken(req);
     const user = await getUserFromToken(token);
     return handler(req, { ...ctx, user });
   };
 }
+
 
